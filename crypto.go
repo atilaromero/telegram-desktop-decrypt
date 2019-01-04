@@ -3,25 +3,12 @@ package main
 import (
 	"crypto/aes"
 	"crypto/sha1"
-	"encoding/binary"
-	"io"
 	"log"
 
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/karlmcguire/ige"
 )
-
-func ReadStream(r io.Reader) []byte {
-	var streamSize uint32
-	err := binary.Read(r, binary.BigEndian, &streamSize)
-	if err != nil {
-		log.Fatal(err)
-	}
-	result := make([]byte, streamSize)
-	r.Read(result)
-	return result
-}
 
 func CreateLocalKey(pass []byte, salt []byte) []byte {
 	iter := 4
