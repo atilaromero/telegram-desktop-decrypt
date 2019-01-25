@@ -67,7 +67,7 @@ func PrintTdataFile(f io.Reader) {
 	fmt.Printf("version\t%d\n", stat.Version)
 	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(stat.PartialMD5[:]))
 	fmt.Printf("correctMD5\t%t\n", stat.CorrectMD5)
-	fmt.Printf("dataLength\t%d", len(stat.Data))
+	fmt.Printf("dataLength\t%d\n", len(stat.Data))
 }
 
 // TdataSettings reflects the streams contained in the tdata/settings0 file.
