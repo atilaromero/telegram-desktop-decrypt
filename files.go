@@ -11,6 +11,17 @@ import (
 	"log"
 )
 
+func ReadStream(r io.Reader) ([]byte, error) {
+	var streamSize uint32
+	err := binary.Read(r, binary.BigEndian, &streamSize)
+	if err != nil {
+		return nil, fmt.Errorf("error reading stream: %v", err)
+	}
+	result := make([]byte, streamSize)
+	n, err := r.Read(result)
+	return result[:n], err
+}
+
 // TdataFile is the generic structure of a tdata file.
 type TdataFile struct {
 	Version    uint32
@@ -133,15 +144,4 @@ func PrintTdataSettings(r io.Reader) {
 	}
 	fmt.Printf("salt\t%s\n", hex.EncodeToString(settings.Salt))
 	fmt.Printf("encrypted\t%s\n", hex.EncodeToString(settings.Encrypted))
-}
-
-func ReadStream(r io.Reader) ([]byte, error) {
-	var streamSize uint32
-	err := binary.Read(r, binary.BigEndian, &streamSize)
-	if err != nil {
-		return nil, fmt.Errorf("error reading stream: %v", err)
-	}
-	result := make([]byte, streamSize)
-	n, err := r.Read(result)
-	return result[:n], err
 }
