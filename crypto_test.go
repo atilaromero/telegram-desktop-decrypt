@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -102,13 +101,13 @@ func TestDecryptLocal(t *testing.T) {
 		if string(_settingsKey) != string(settingsKey) {
 			t.Fatalf("wrong settingsKey. Expected %s, got %s", hex.EncodeToString(_settingsKey), hex.EncodeToString(settingsKey))
 		}
-		settingsDecrypted := DecryptLocal(_settingsEncrypted, settingsKey)
+		settingsDecrypted, err := DecryptLocal(_settingsEncrypted,
+			settingsKey)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if string(_settingsDecrypted) != string(settingsDecrypted) {
 			t.Fatalf("wrong settingsDecrypted. Expected %s, got %s", hex.EncodeToString(_settingsDecrypted), hex.EncodeToString(settingsDecrypted))
-		}
-		partialSha1 := sha1.Sum(settingsDecrypted)
-		if string(_settingsEncrypted[:16]) != string(partialSha1[:16]) {
-			t.Fatalf("wrong SHA1. Expected %s, got %s", hex.EncodeToString(_settingsEncrypted[:16]), hex.EncodeToString(partialSha1[:16]))
 		}
 	}
 }

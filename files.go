@@ -59,7 +59,7 @@ func ReadTdataFile(f io.Reader) (TdataFile, error) {
 }
 
 // PrintTdataFile reads a tdata file and prints some data.
-func PrintTdataFile(f io.Reader) {
+func PrintTdataFile(f io.Reader, verbose bool) {
 	stat, err := ReadTdataFile(f)
 	if err != nil {
 		log.Fatal(err)
@@ -68,6 +68,23 @@ func PrintTdataFile(f io.Reader) {
 	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(stat.PartialMD5[:]))
 	fmt.Printf("correctMD5\t%t\n", stat.CorrectMD5)
 	fmt.Printf("dataLength\t%d\n", len(stat.Data))
+	var i int
+	var buf []byte
+	for pos := 0; pos < len(stat.Data); pos += len(buf) {
+		buf, err = ReadStream(bytes.NewReader(stat.Data[pos:]))
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("error reading stream: %v", err)
+		}
+		if verbose {
+			fmt.Printf("stream %3d\t%s\n", i, hex.EncodeToString(buf))
+		} else {
+			fmt.Printf("stream %3d\t%d\n", i, len(buf))
+		}
+		i++
+	}
 }
 
 // TdataSettings reflects the streams contained in the tdata/settings0 file.
@@ -106,7 +123,7 @@ func getSettingsKey(settings TdataSettings, optional_password ...string) ([]byte
 }
 
 func decryptSettings(settings TdataSettings, settingsKey []byte) ([]byte, error) {
-	return DecryptLocal(settings.Encrypted, settingsKey), nil
+	return DecryptLocal(settings.Encrypted, settingsKey)
 }
 
 func PrintTdataSettings(r io.Reader) {
@@ -125,6 +142,6 @@ func ReadStream(r io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("error reading stream: %v", err)
 	}
 	result := make([]byte, streamSize)
-	r.Read(result)
-	return result, nil
+	n, err := r.Read(result)
+	return result[:n], err
 }

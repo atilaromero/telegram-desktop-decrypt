@@ -11,6 +11,9 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{Use: os.Args[0]}
+	var password string
+	var settingsKey string
+	var verbose bool
 
 	var cmdInspect = &cobra.Command{
 		Use:   "inspect [tdata file]",
@@ -23,9 +26,10 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			PrintTdataFile(f)
+			PrintTdataFile(f, verbose)
 		},
 	}
+	cmdInspect.Flags().BoolVarP(&verbose, "verbose", "v", false, "show content of streams")
 	rootCmd.AddCommand(cmdInspect)
 
 	cmdSettings := &cobra.Command{
@@ -48,13 +52,14 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey, err := getSettingsKey(settings)
+			settingsKey, err := getSettingsKey(settings, password)
 			if err != nil {
 				log.Fatalf("could not extract settings key: %v", err)
 			}
 			fmt.Println(hex.EncodeToString(settingsKey))
 		},
 	}
+	cmdSettingsKey.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdSettings.AddCommand(cmdSettingsKey)
 	cmdSettingsDecrypt := &cobra.Command{
 		Use:   "decrypt [settings file]",
@@ -71,7 +76,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey, err := getSettingsKey(settings)
+			settingsKey, err := getSettingsKey(settings, password)
 			if err != nil {
 				log.Fatalf("could not extract settings key: %v", err)
 			}
@@ -82,7 +87,23 @@ func main() {
 			fmt.Println(hex.EncodeToString(decrypted))
 		},
 	}
+	cmdSettingsDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdSettings.AddCommand(cmdSettingsDecrypt)
+
+	cmdMap := &cobra.Command{
+		Use:   "map [map file]",
+		Short: "work with map file",
+	}
+	rootCmd.AddCommand(cmdMap)
+	cmdMapDecrypt := &cobra.Command{
+		Use:   "decrypt [map file]",
+		Short: "decrypt map file",
+		Run: func(cmd *cobra.Command, args []string) {
+
+		},
+	}
+	cmdMapDecrypt.Flags().StringVarP(&settingsKey, "settingsKey", "s", "", "settings key in hex")
+	cmdMap.AddCommand(cmdMapDecrypt)
 
 	rootCmd.Execute()
 }

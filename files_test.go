@@ -11,12 +11,14 @@ const hexSettings0 string = "54444624ca550f0000000020b0ca901027e08bc58296fa67d2e
 
 func ExamplePrintTdataFile() {
 	settings0, _ := hex.DecodeString(hexSettings0)
-	PrintTdataFile(bytes.NewReader(settings0))
+	PrintTdataFile(bytes.NewReader(settings0), false)
 	// Output:
 	// version	1005002
 	// partialMD5	afcfca85676e873236b98f34c842e76a
 	// correctMD5	true
 	// dataLength	1000
+	// stream   0	32
+	// stream   1	964
 }
 
 func ExamplePrintTdataSettings() {
