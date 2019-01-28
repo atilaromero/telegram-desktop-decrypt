@@ -18,7 +18,7 @@ func ExamplePrintTdataFile() {
 	// correctMD5	true
 	// dataLength	1000
 	// stream   0	32
-	// stream   1	964
+	// stream   1	960
 }
 
 func ExamplePrintTdataSettings() {
@@ -35,11 +35,8 @@ func ExampleDecryptSettings() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	settingsKey, err := getSettingsKey(settings)
-	if err != nil {
-		log.Fatal(err)
-	}
-	decrypted, err := decryptSettings(settings, settingsKey)
+	settingsKey := CreateLocalKey([]byte{}, settings.Salt)
+	decrypted, err := DecryptLocal(settings.Encrypted, settingsKey)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -15,7 +15,7 @@ func ReadStream(r io.Reader) ([]byte, error) {
 	var streamSize uint32
 	err := binary.Read(r, binary.BigEndian, &streamSize)
 	if err != nil {
-		return nil, fmt.Errorf("error reading stream: %v", err)
+		return nil, err
 	}
 	result := make([]byte, streamSize)
 	n, err := r.Read(result)
@@ -81,11 +81,8 @@ func PrintTdataFile(f io.Reader, verbose bool) {
 	fmt.Printf("dataLength\t%d\n", len(stat.Data))
 	var i int
 	var buf []byte
-	for pos := 0; pos < len(stat.Data); pos += len(buf) {
-		buf, err = ReadStream(bytes.NewReader(stat.Data[pos:]))
-		if err == io.EOF {
-			break
-		}
+	r := bytes.NewReader(stat.Data)
+	for buf, err = ReadStream(r); err != io.EOF; buf, err = ReadStream(r) {
 		if err != nil {
 			log.Fatalf("error reading stream: %v", err)
 		}
@@ -125,18 +122,6 @@ func ReadTdataSettings(f io.Reader) (TdataSettings, error) {
 	// fmt.Println(hex.EncodeToString(settingsKey[:]))
 }
 
-func getSettingsKey(settings TdataSettings, optional_password ...string) ([]byte, error) {
-	pass := []byte{}
-	if len(optional_password) > 0 {
-		pass = []byte(optional_password[0])
-	}
-	return CreateLocalKey(pass, settings.Salt), nil
-}
-
-func decryptSettings(settings TdataSettings, settingsKey []byte) ([]byte, error) {
-	return DecryptLocal(settings.Encrypted, settingsKey)
-}
-
 func PrintTdataSettings(r io.Reader) {
 	settings, err := ReadTdataSettings(r)
 	if err != nil {
@@ -144,4 +129,34 @@ func PrintTdataSettings(r io.Reader) {
 	}
 	fmt.Printf("salt\t%s\n", hex.EncodeToString(settings.Salt))
 	fmt.Printf("encrypted\t%s\n", hex.EncodeToString(settings.Encrypted))
+}
+
+// TdataMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
+type TdataMap struct {
+	Salt         []byte
+	KeyEncrypted []byte
+	MapEncrypted []byte
+}
+
+// ReadTdataMap opens the map file
+func ReadTdataMap(f io.Reader) (TdataMap, error) {
+	result := TdataMap{}
+	tfile, err := ReadTdataFile(f)
+	if err != nil {
+		return result, fmt.Errorf("could not interpret file, error: %v", err)
+	}
+	mydata := bytes.NewReader(tfile.Data)
+	result.Salt, err = ReadStream(mydata)
+	if err != nil {
+		return result, fmt.Errorf("could not read salt: %v", err)
+	}
+	result.KeyEncrypted, err = ReadStream(mydata)
+	if err != nil {
+		return result, fmt.Errorf("could not read keyEncrypted: %v", err)
+	}
+	result.MapEncrypted, err = ReadStream(mydata)
+	if err != nil {
+		return result, fmt.Errorf("could not read mapEncrypted: %v", err)
+	}
+	return result, err
 }

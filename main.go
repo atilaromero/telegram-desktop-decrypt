@@ -12,8 +12,9 @@ import (
 func main() {
 	var rootCmd = &cobra.Command{Use: os.Args[0]}
 	var password string
-	var settingsKey string
+	var key string
 	var verbose bool
+	var stream int
 
 	var cmdInspect = &cobra.Command{
 		Use:   "inspect [tdata file]",
@@ -52,10 +53,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey, err := getSettingsKey(settings, password)
-			if err != nil {
-				log.Fatalf("could not extract settings key: %v", err)
-			}
+			settingsKey := CreateLocalKey([]byte(password), settings.Salt)
 			fmt.Println(hex.EncodeToString(settingsKey))
 		},
 	}
@@ -76,11 +74,8 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey, err := getSettingsKey(settings, password)
-			if err != nil {
-				log.Fatalf("could not extract settings key: %v", err)
-			}
-			decrypted, err := decryptSettings(settings, settingsKey)
+			settingsKey := CreateLocalKey([]byte(password), settings.Salt)
+			decrypted, err := DecryptLocal(settings.Encrypted, settingsKey)
 			if err != nil {
 				log.Fatalf("could not decrypt settings file: %v", err)
 			}
@@ -95,14 +90,51 @@ func main() {
 		Short: "work with map file",
 	}
 	rootCmd.AddCommand(cmdMap)
+	cmdMapKey := &cobra.Command{
+		Use:   "getkey [map file]",
+		Short: "get map key in hex",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			filename := args[0]
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", filename, err)
+			}
+			defer f.Close()
+			tdatamap, err := ReadTdataMap(f)
+			if err != nil {
+				log.Fatalf("could not interpret map file: %v", err)
+			}
+			passkey := CreateLocalKey([]byte(password), tdatamap.Salt)
+			localkey, err := DecryptLocal(tdatamap.KeyEncrypted, passkey)
+			if err != nil {
+				log.Fatalf("could not decrypt map file: %v", err)
+			}
+			fmt.Println(hex.EncodeToString(localkey))
+		},
+	}
+	cmdMapKey.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
+	cmdMap.AddCommand(cmdMapKey)
 	cmdMapDecrypt := &cobra.Command{
 		Use:   "decrypt [map file]",
 		Short: "decrypt map file",
 		Run: func(cmd *cobra.Command, args []string) {
-
+			filename := args[0]
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", filename, err)
+			}
+			defer f.Close()
+			tdatamap, err := ReadTdataMap(f)
+			if err != nil {
+				log.Fatalf("could not interpret map file: %v", err)
+			}
+			mapKey := CreateLocalKey([]byte(password), tdatamap.Salt)
+			fmt.Println(hex.EncodeToString(mapKey))
 		},
 	}
-	cmdMapDecrypt.Flags().StringVarP(&settingsKey, "settingsKey", "s", "", "settings key in hex")
+	cmdMapDecrypt.Flags().IntVarP(&stream, "stream", "n", 0, "stream number")
+	cmdMapDecrypt.Flags().StringVarP(&key, "key", "k", "", "key in hex")
 	cmdMap.AddCommand(cmdMapDecrypt)
 
 	rootCmd.Execute()

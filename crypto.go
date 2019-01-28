@@ -58,6 +58,9 @@ func PrepareAESOldmtp(globalKey []byte, msgKey []byte) (key []byte, iv []byte) {
 }
 
 func DecryptLocal(encryptedMsg []byte, globalKey []byte) ([]byte, error) {
+	if len(encryptedMsg) < 16 {
+		return nil, fmt.Errorf("encrypted message too short (%d)", len(encryptedMsg))
+	}
 	msgKey := encryptedMsg[:16]
 	encrypted := encryptedMsg[16:]
 	out := make([]byte, len(encrypted))
