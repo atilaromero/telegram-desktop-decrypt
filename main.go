@@ -12,9 +12,7 @@ import (
 func main() {
 	var rootCmd = &cobra.Command{Use: os.Args[0]}
 	var password string
-	var key string
 	var verbose bool
-	var stream int
 
 	var cmdInspect = &cobra.Command{
 		Use:   "inspect [tdata file]",
@@ -110,6 +108,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not decrypt map file: %v", err)
 			}
+			localkey = localkey[4:]
 			fmt.Println(hex.EncodeToString(localkey))
 		},
 	}
@@ -129,12 +128,20 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret map file: %v", err)
 			}
-			mapKey := CreateLocalKey([]byte(password), tdatamap.Salt)
-			fmt.Println(hex.EncodeToString(mapKey))
+			passkey := CreateLocalKey([]byte(password), tdatamap.Salt)
+			localkey, err := DecryptLocal(tdatamap.KeyEncrypted, passkey)
+			if err != nil {
+				log.Fatalf("could not decrypt map file: %v", err)
+			}
+			localkey = localkey[4:]
+			decrypted, err := DecryptLocal(tdatamap.MapEncrypted, localkey)
+			if err != nil {
+				log.Fatalf("could not decrypt map file: %v", err)
+			}
+			fmt.Println(hex.EncodeToString(decrypted))
 		},
 	}
-	cmdMapDecrypt.Flags().IntVarP(&stream, "stream", "n", 0, "stream number")
-	cmdMapDecrypt.Flags().StringVarP(&key, "key", "k", "", "key in hex")
+	cmdMapDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdMap.AddCommand(cmdMapDecrypt)
 
 	rootCmd.Execute()
