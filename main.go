@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -13,6 +14,7 @@ func main() {
 	var rootCmd = &cobra.Command{Use: os.Args[0]}
 	var password string
 	var verbose bool
+	var stream int
 
 	var cmdInspect = &cobra.Command{
 		Use:   "inspect [tdata file]",
@@ -33,7 +35,7 @@ func main() {
 
 	cmdSettings := &cobra.Command{
 		Use:   "settings [settings file]",
-		Short: "show settings file properties",
+		Short: "work with settings file",
 	}
 	rootCmd.AddCommand(cmdSettings)
 	cmdSettingsKey := &cobra.Command{
@@ -143,6 +145,43 @@ func main() {
 	}
 	cmdMapDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdMap.AddCommand(cmdMapDecrypt)
+
+	cmdDecrypt := &cobra.Command{
+		Use:   "decrypt [tdata file] [key in hex (only first 136 bytes matter)]",
+		Short: "decrypt a regular tdata file",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			filename := args[0]
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", filename, err)
+			}
+			key, err := hex.DecodeString(args[1])
+			if err != nil {
+				log.Fatalf("invalid key (must be in hex): %v", err)
+			}
+			defer f.Close()
+			tdata, err := ReadTdataFile(f)
+			if err != nil {
+				log.Fatalf("error reading tdata file: %v", err)
+			}
+			var streamdata []byte
+			r := bytes.NewReader(tdata.Data)
+			for i := 0; i <= stream; i++ {
+				streamdata, err = ReadStream(r)
+				if err != nil {
+					log.Fatalf("could not read stream %d: %v", i, err)
+				}
+			}
+			decrypted, err := DecryptLocal(streamdata, key)
+			if err != nil {
+				log.Fatalf("could not decrypt file: %v", err)
+			}
+			os.Stdout.Write(decrypted)
+		},
+	}
+	cmdDecrypt.Flags().IntVarP(&stream, "stream", "s", 0, "stream number (default=0)")
+	rootCmd.AddCommand(cmdDecrypt)
 
 	rootCmd.Execute()
 }

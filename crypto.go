@@ -3,8 +3,8 @@ package main
 import (
 	"crypto/aes"
 	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
-	"log"
 
 	"golang.org/x/crypto/pbkdf2"
 
@@ -67,12 +67,12 @@ func DecryptLocal(encryptedMsg []byte, globalKey []byte) ([]byte, error) {
 	key, iv := PrepareAESOldmtp(globalKey, msgKey)
 	cph, err := aes.NewCipher(key)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("could not create cipher: %v", err)
 	}
 	i := ige.NewIGEDecrypter(cph, iv)
 	i.CryptBlocks(out, encrypted)
 	partialSha1 := sha1.Sum(out)
-	if string(msgKey) != string(partialSha1[:16]) {
+	if hex.EncodeToString(msgKey) != hex.EncodeToString(partialSha1[:16]) {
 		return out, fmt.Errorf("wrong key")
 	}
 	return out, nil
