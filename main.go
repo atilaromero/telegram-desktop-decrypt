@@ -27,7 +27,11 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			PrintTdataFile(f, verbose)
+			tdatafile, err := ReadTdataFile(f)
+			if err != nil {
+				log.Fatal(err)
+			}
+			tdatafile.Print(verbose)
 		},
 	}
 	cmdInspect.Flags().BoolVarP(&verbose, "verbose", "v", false, "show content of streams")
@@ -53,7 +57,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey := CreateLocalKey([]byte(password), settings.Salt)
+			settingsKey := settings.GetKey(password)
 			fmt.Println(hex.EncodeToString(settingsKey))
 		},
 	}
@@ -74,12 +78,9 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
-			settingsKey := CreateLocalKey([]byte(password), settings.Salt)
-			decrypted, err := DecryptLocal(settings.Encrypted, settingsKey)
-			if err != nil {
-				log.Fatalf("could not decrypt settings file: %v", err)
-			}
-			fmt.Println(hex.EncodeToString(decrypted))
+			settingsKey := settings.GetKey(password)
+			decrypted, err := settings.Decrypt(settingsKey)
+			os.Stdout.Write(decrypted)
 		},
 	}
 	cmdSettingsDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
@@ -105,12 +106,10 @@ func main() {
 			if err != nil {
 				log.Fatalf("could not interpret map file: %v", err)
 			}
-			passkey := CreateLocalKey([]byte(password), tdatamap.Salt)
-			localkey, err := DecryptLocal(tdatamap.KeyEncrypted, passkey)
+			localkey, err := tdatamap.GetKey(password)
 			if err != nil {
 				log.Fatalf("could not decrypt map file: %v", err)
 			}
-			localkey = localkey[4:]
 			fmt.Println(hex.EncodeToString(localkey))
 		},
 	}
@@ -128,23 +127,44 @@ func main() {
 			defer f.Close()
 			tdatamap, err := ReadTdataMap(f)
 			if err != nil {
-				log.Fatalf("could not interpret map file: %v", err)
+				log.Fatal(err)
 			}
-			passkey := CreateLocalKey([]byte(password), tdatamap.Salt)
-			localkey, err := DecryptLocal(tdatamap.KeyEncrypted, passkey)
+			localkey, err := tdatamap.GetKey(password)
 			if err != nil {
-				log.Fatalf("could not decrypt map file: %v", err)
+				log.Fatal(err)
 			}
-			localkey = localkey[4:]
-			decrypted, err := DecryptLocal(tdatamap.MapEncrypted, localkey)
+			decrypted, err := tdatamap.Decrypt(localkey)
 			if err != nil {
-				log.Fatalf("could not decrypt map file: %v", err)
+				log.Fatal(err)
 			}
-			fmt.Println(hex.EncodeToString(decrypted))
+			os.Stdout.Write(decrypted)
 		},
 	}
 	cmdMapDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdMap.AddCommand(cmdMapDecrypt)
+	cmdMapInterpret := &cobra.Command{
+		Use:   "interpret [map file]",
+		Short: "decrypt and interpret map file",
+		Run: func(cmd *cobra.Command, args []string) {
+			filename := args[0]
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", filename, err)
+			}
+			defer f.Close()
+			tdatamap, err := ReadTdataMap(f)
+			if err != nil {
+				log.Fatal(err)
+			}
+			localkey, err := tdatamap.GetKey(password)
+			if err != nil {
+				log.Fatal(err)
+			}
+			tdatamap.Interpret(localkey)
+		},
+	}
+	cmdMapInterpret.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
+	cmdMap.AddCommand(cmdMapInterpret)
 
 	cmdDecrypt := &cobra.Command{
 		Use:   "decrypt [tdata file] [key in hex (only first 136 bytes matter)]",
