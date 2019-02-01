@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 )
 
 func ReadStream(r io.Reader) ([]byte, error) {
@@ -297,6 +298,9 @@ func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir stri
 		return fmt.Errorf("outdir should not exist: %v", err)
 	}
 	for _, fpath := range files {
+		if fpath.Name() == "map0" || fpath.Name() == "map1" {
+			continue
+		}
 		reversedkey := fpath.Name()[:len(fpath.Name())-1]
 		key := ""
 		for _, c := range reversedkey {
@@ -311,12 +315,16 @@ func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir stri
 		}
 		keytypepath := path.Join(outdir, typename)
 		os.Mkdir(keytypepath, 0755) // ignore error
+		if typename == "Images" {
+			keytypepath = path.Join(keytypepath, fpath.Name()[:2])
+			os.Mkdir(keytypepath, 0755) // ignore error
+		}
 		encryptedfile := path.Join(srcdir, fpath.Name())
 		decryptedfile := path.Join(keytypepath, fpath.Name())
 		if verbose {
 			fmt.Println(decryptedfile)
 		}
-		func(encryptedfile string, decryptedfile string, keytype uint32) {
+		err := func(encryptedfile string, decryptedfile string, keytype uint32) error {
 			f, err := os.Open(encryptedfile)
 			if err != nil {
 				log.Fatalf("could not open file '%s': %v", encryptedfile, err)
@@ -335,16 +343,65 @@ func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir stri
 			decrypted, err := DecryptLocal(streamdata, localkey)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
+				return nil
 			}
-			start := 0
-			end := len(decrypted)
+			r = bytes.NewReader(decrypted)
 			switch lsk[keytype] {
+			case "Audios",
+				"StickerImages":
+				header := audioStruct{}
+				err := binary.Read(r, binary.BigEndian, &header)
+				if err != nil {
+					return err
+				}
+				data := make([]byte, header.Len)
+				n, err := r.Read(data)
+				if err != nil {
+					return err
+				}
+				ioutil.WriteFile(decryptedfile, data[:n], 0644)
 			case "Images":
-				start = 28
-				end = end - 12
+				header := imageStruct{}
+				err := binary.Read(r, binary.BigEndian, &header)
+				if err != nil {
+					return err
+				}
+				data := make([]byte, header.Len)
+				n, err := r.Read(data)
+				if err != nil {
+					return err
+				}
+				ioutil.WriteFile(decryptedfile, data[:n], 0644)
+			default:
+				fmt.Fprintf(os.Stderr, "%s still not fully treated\n", lsk[keytype])
+				ioutil.WriteFile(decryptedfile, decrypted, 0644)
 			}
-			ioutil.WriteFile(decryptedfile, decrypted[start:end], 0644)
+			return nil
 		}(encryptedfile, decryptedfile, keytype)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+func qDateTime(qDate uint64, qTime uint32) time.Time {
+	return epoch.Add(time.Hour * time.Duration(24*(qDate-2440588))).Add(time.Millisecond * time.Duration(qTime))
+}
+
+type imageStruct struct {
+	Fulllen    uint32
+	First      uint64
+	Second     uint64
+	Legacytype uint32
+	Len        uint32
+}
+
+type audioStruct struct {
+	Fulllen uint32
+	First   uint64
+	Second  uint64
+	Len     uint32
 }
