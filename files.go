@@ -9,6 +9,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"path"
 )
 
 func ReadStream(r io.Reader) ([]byte, error) {
@@ -183,49 +185,166 @@ func (tdatamap TdataMap) Decrypt(localkey []byte) ([]byte, error) {
 	return decrypted, nil
 }
 
-const (
-	lskUserMap               = 0x00
-	lskDraft                 = 0x01 // data: PeerId peer
-	lskDraftPosition         = 0x02 // data: PeerId peer
-	lskImages                = 0x03 // data: StorageKey location
-	lskLocations             = 0x04 // no data
-	lskStickerImages         = 0x05 // data: StorageKey location
-	lskAudios                = 0x06 // data: StorageKey location
-	lskRecentStickersOld     = 0x07 // no data
-	lskBackgroundOld         = 0x08 // no data
-	lskUserSettings          = 0x09 // no data
-	lskRecentHashtagsAndBots = 0x0a // no data
-	lskStickersOld           = 0x0b // no data
-	lskSavedPeers            = 0x0c // no data
-	lskReportSpamStatuses    = 0x0d // no data
-	lskSavedGifsOld          = 0x0e // no data
-	lskSavedGifs             = 0x0f // no data
-	lskStickersKeys          = 0x10 // no data
-	lskTrustedBots           = 0x11 // no data
-	lskFavedStickers         = 0x12 // no data
-	lskExportSettings        = 0x13 // no data
-	lskBackground            = 0x14 // no data
-	lskSelfSerialized        = 0x15 // serialized self
-)
+var lsk = map[uint32]string{
+	0x00: "UserMap",
+	0x01: "Draft",
+	0x02: "DraftPosition",
+	0x03: "Images",
+	0x04: "Locations",
+	0x05: "StickerImages",
+	0x06: "Audios",
+	0x07: "RecentStickersOld",
+	0x08: "BackgroundOld",
+	0x09: "UserSettings",
+	0x0a: "RecentHashtagsAndBots",
+	0x0b: "StickersOld",
+	0x0c: "SavedPeers",
+	0x0d: "ReportSpamStatuses",
+	0x0e: "SavedGifsOld",
+	0x0f: "SavedGifs",
+	0x10: "StickersKeys",
+	0x11: "TrustedBots",
+	0x12: "FavedStickers",
+	0x13: "ExportSettings",
+	0x14: "Background",
+	0x15: "SelfSerialized",
+}
 
-func (tdatamap TdataMap) Interpret(localkey []byte) ([]byte, error) {
-
+func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
+	result := make(map[string]uint32)
 	decrypted, err := tdatamap.Decrypt(localkey)
 	if err != nil {
 		return nil, err
 	}
 	r := bytes.NewReader(decrypted[4:])
 	var keytype uint32
-	err = binary.Read(r, binary.BigEndian, &keytype)
-	if err != nil {
-		return nil, fmt.Errorf("could not read keytype: %v", err)
-	}
-	switch keytype {
-	case 3:
-		fmt.Println(keytype)
-	default:
-		fmt.Println("not treated", keytype)
-	}
+	var key, first, second, p uint64
+	var size uint32
+	var count uint32
+	for x := 0; ; x++ {
+		err = binary.Read(r, binary.BigEndian, &keytype)
+		if err == io.EOF {
+			return result, nil
+		}
+		if err != nil {
+			return result, err
+		}
+		switch lsk[keytype] {
+		case "SelfSerialized",
+			"Locations",
+			"ReportSpamStatuses",
+			"TrustedBots",
+			"RecentStickersOld",
+			"BackgroundOld",
+			"UserSettings",
+			"RecentHashtagsAndBots",
+			"StickersOld",
+			"FavedStickers",
+			"SavedGifsOld",
+			"SavedGifs",
+			"SavedPeers",
+			"ExportSettings":
+			binary.Read(r, binary.BigEndian, &key)
+			result[fmt.Sprintf("%016X", key)] = keytype
+		case "Background":
+			for i := 0; i < 2; i++ {
+				binary.Read(r, binary.BigEndian, &key)
+				result[fmt.Sprintf("%016X", key)] = keytype
+			}
+		case "StickersKeys":
+			for i := 0; i < 4; i++ {
+				binary.Read(r, binary.BigEndian, &key)
+				result[fmt.Sprintf("%016X", key)] = keytype
+			}
+		case "Draft",
+			"DraftPosition":
 
-	return decrypted, nil
+			binary.Read(r, binary.BigEndian, &count)
+			for i := uint32(0); i < count; i++ {
+				binary.Read(r, binary.BigEndian, &key)
+				binary.Read(r, binary.BigEndian, &p)
+				result[fmt.Sprintf("%016X", key)] = keytype
+			}
+		case "Images",
+			"StickerImages",
+			"Audios":
+
+			binary.Read(r, binary.BigEndian, &count)
+			for i := uint32(0); i < count; i++ {
+				binary.Read(r, binary.BigEndian, &key)
+				binary.Read(r, binary.BigEndian, &first)
+				binary.Read(r, binary.BigEndian, &second)
+				binary.Read(r, binary.BigEndian, &size)
+				result[fmt.Sprintf("%016X", key)] = keytype
+			}
+		default:
+			return result, fmt.Errorf("keytype not treated: %d", keytype)
+		}
+	}
+}
+
+func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir string, verbose bool) error {
+	listkeys, err := tdatamap.ListKeys(localkey)
+	if err != nil {
+		return err
+	}
+	files, err := ioutil.ReadDir(srcdir)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(outdir, 0755)
+	if err != nil {
+		return fmt.Errorf("outdir should not exist: %v", err)
+	}
+	for _, fpath := range files {
+		reversedkey := fpath.Name()[:len(fpath.Name())-1]
+		key := ""
+		for _, c := range reversedkey {
+			key = string(c) + key
+		}
+		var typename string
+		keytype, ok := listkeys[key]
+		if ok {
+			typename = lsk[keytype]
+		} else {
+			typename = "Unknown"
+		}
+		keytypepath := path.Join(outdir, typename)
+		os.Mkdir(keytypepath, 0755) // ignore error
+		encryptedfile := path.Join(srcdir, fpath.Name())
+		decryptedfile := path.Join(keytypepath, fpath.Name())
+		if verbose {
+			fmt.Println(decryptedfile)
+		}
+		func(encryptedfile string, decryptedfile string, keytype uint32) {
+			f, err := os.Open(encryptedfile)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", encryptedfile, err)
+			}
+			defer f.Close()
+			tdata, err := ReadTdataFile(f)
+			if err != nil {
+				log.Fatalf("error reading tdata file: %v", err)
+			}
+			r := bytes.NewReader(tdata.Data)
+			streamdata, err := ReadStream(r)
+			if err != nil {
+				log.Fatalf("could not read stream: %v", err)
+			}
+			f.Close()
+			decrypted, err := DecryptLocal(streamdata, localkey)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
+			}
+			start := 0
+			end := len(decrypted)
+			switch lsk[keytype] {
+			case "Images":
+				start = 28
+				end = end - 12
+			}
+			ioutil.WriteFile(decryptedfile, decrypted[start:end], 0644)
+		}(encryptedfile, decryptedfile, keytype)
+	}
+	return nil
 }

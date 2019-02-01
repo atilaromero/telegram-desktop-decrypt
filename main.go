@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -142,9 +143,9 @@ func main() {
 	}
 	cmdMapDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
 	cmdMap.AddCommand(cmdMapDecrypt)
-	cmdMapInterpret := &cobra.Command{
-		Use:   "interpret [map file]",
-		Short: "decrypt and interpret map file",
+	cmdMapListKeys := &cobra.Command{
+		Use:   "listkeys [map file]",
+		Short: "decrypt map and list keys found on it",
 		Run: func(cmd *cobra.Command, args []string) {
 			filename := args[0]
 			f, err := os.Open(filename)
@@ -160,11 +161,17 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			tdatamap.Interpret(localkey)
+			listedkeys, err := tdatamap.ListKeys(localkey)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for k, v := range listedkeys {
+				fmt.Println(k, v)
+			}
 		},
 	}
-	cmdMapInterpret.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
-	cmdMap.AddCommand(cmdMapInterpret)
+	cmdMapListKeys.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
+	cmdMap.AddCommand(cmdMapListKeys)
 
 	cmdDecrypt := &cobra.Command{
 		Use:   "decrypt [tdata file] [key in hex (only first 136 bytes matter)]",
@@ -172,13 +179,13 @@ func main() {
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			filename := args[0]
-			f, err := os.Open(filename)
-			if err != nil {
-				log.Fatalf("could not open file '%s': %v", filename, err)
-			}
 			key, err := hex.DecodeString(args[1])
 			if err != nil {
 				log.Fatalf("invalid key (must be in hex): %v", err)
+			}
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
 			tdata, err := ReadTdataFile(f)
@@ -202,6 +209,41 @@ func main() {
 	}
 	cmdDecrypt.Flags().IntVarP(&stream, "stream", "s", 0, "stream number (default=0)")
 	rootCmd.AddCommand(cmdDecrypt)
+
+	cmdBulkDecrypt := &cobra.Command{
+		Use:   "bulkdecrypt [map file] [outdir]",
+		Short: "decrypt all files in map folder and save results on outdir",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			mappath := args[0]
+			outdir := args[1]
+			srcdir, err := filepath.Abs(mappath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			srcdir = filepath.Dir(srcdir)
+			f, err := os.Open(mappath)
+			if err != nil {
+				log.Fatalf("could not open file '%s': %v", mappath, err)
+			}
+			defer f.Close()
+			tdatamap, err := ReadTdataMap(f)
+			if err != nil {
+				log.Fatal(err)
+			}
+			localkey, err := tdatamap.GetKey(password)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = tdatamap.BulkDecrypt(localkey, srcdir, outdir, verbose)
+			if err != nil {
+				log.Fatal(err)
+			}
+		},
+	}
+	cmdBulkDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
+	cmdBulkDecrypt.Flags().BoolVarP(&verbose, "verbose", "v", false, "show content of streams")
+	rootCmd.AddCommand(cmdBulkDecrypt)
 
 	rootCmd.Execute()
 }
