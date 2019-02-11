@@ -235,14 +235,13 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = tdatamap.BulkDecrypt(localkey, srcdir, outdir, verbose)
+			err = tdatamap.BulkDecrypt(localkey, srcdir, outdir)
 			if err != nil {
 				log.Fatal(err)
 			}
 		},
 	}
 	cmdBulkDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
-	cmdBulkDecrypt.Flags().BoolVarP(&verbose, "verbose", "v", false, "show content of streams")
 	rootCmd.AddCommand(cmdBulkDecrypt)
 
 	rootCmd.Execute()

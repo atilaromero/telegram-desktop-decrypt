@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"time"
+	"unicode/utf16"
 )
 
 func ReadStream(r io.Reader) ([]byte, error) {
@@ -284,7 +285,7 @@ func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
 	}
 }
 
-func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir string, verbose bool) error {
+func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir string) error {
 	listkeys, err := tdatamap.ListKeys(localkey)
 	if err != nil {
 		return err
@@ -297,6 +298,16 @@ func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir stri
 	if err != nil {
 		return fmt.Errorf("outdir should not exist: %v", err)
 	}
+	lf, err := os.Create(path.Join(outdir, "locations.csv"))
+	if err != nil {
+		return fmt.Errorf("could not create locations.csv: %v", err)
+	}
+	defer lf.Close()
+	filesf, err := os.Create(path.Join(outdir, "files.csv"))
+	if err != nil {
+		return fmt.Errorf("could not create files.csv: %v", err)
+	}
+	defer filesf.Close()
 	for _, fpath := range files {
 		if fpath.Name() == "map0" || fpath.Name() == "map1" {
 			continue
@@ -321,74 +332,167 @@ func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir stri
 		}
 		encryptedfile := path.Join(srcdir, fpath.Name())
 		decryptedfile := path.Join(keytypepath, fpath.Name())
-		if verbose {
-			fmt.Println(decryptedfile)
-		}
-		err := func(encryptedfile string, decryptedfile string, keytype uint32) error {
-			f, err := os.Open(encryptedfile)
-			if err != nil {
-				log.Fatalf("could not open file '%s': %v", encryptedfile, err)
-			}
-			defer f.Close()
-			tdata, err := ReadTdataFile(f)
-			if err != nil {
-				log.Fatalf("error reading tdata file: %v", err)
-			}
-			r := bytes.NewReader(tdata.Data)
-			streamdata, err := ReadStream(r)
-			if err != nil {
-				log.Fatalf("could not read stream: %v", err)
-			}
-			f.Close()
-			decrypted, err := DecryptLocal(streamdata, localkey)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
-				return nil
-			}
-			r = bytes.NewReader(decrypted)
-			switch lsk[keytype] {
-			case "Audios",
-				"StickerImages":
-				header := audioStruct{}
-				err := binary.Read(r, binary.BigEndian, &header)
-				if err != nil {
-					return err
-				}
-				data := make([]byte, header.Len)
-				n, err := r.Read(data)
-				if err != nil {
-					return err
-				}
-				ioutil.WriteFile(decryptedfile, data[:n], 0644)
-			case "Images":
-				header := imageStruct{}
-				err := binary.Read(r, binary.BigEndian, &header)
-				if err != nil {
-					return err
-				}
-				data := make([]byte, header.Len)
-				n, err := r.Read(data)
-				if err != nil {
-					return err
-				}
-				ioutil.WriteFile(decryptedfile, data[:n], 0644)
-			default:
-				fmt.Fprintf(os.Stderr, "%s still not fully treated\n", lsk[keytype])
-				ioutil.WriteFile(decryptedfile, decrypted, 0644)
-			}
-			return nil
-		}(encryptedfile, decryptedfile, keytype)
+		newlocationIDs, newoutputIDs, err := saveDecrypted(localkey, encryptedfile, decryptedfile, keytype)
 		if err != nil {
 			return err
 		}
+		for _, l := range newlocationIDs {
+			fmt.Fprintf(lf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+		}
+		for _, l := range newoutputIDs {
+			fmt.Fprintf(filesf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+		}
 	}
 	return nil
+}
+
+type FirstSecond struct {
+	First    uint64
+	Second   uint64
+	Filename string
+	Size     uint32
+}
+
+func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, keytype uint32) (locationIDs, outputIDs []FirstSecond, err error) {
+	locationIDs = []FirstSecond{}
+	outputIDs = []FirstSecond{}
+
+	f, err := os.Open(encryptedfile)
+	if err != nil {
+		log.Fatalf("could not open file '%s': %v", encryptedfile, err)
+	}
+	defer f.Close()
+	tdata, err := ReadTdataFile(f)
+	if err != nil {
+		log.Fatalf("error reading tdata file: %v", err)
+	}
+	r := bytes.NewReader(tdata.Data)
+	streamdata, err := ReadStream(r)
+	if err != nil {
+		log.Fatalf("could not read stream: %v", err)
+	}
+	f.Close()
+	decrypted, err := DecryptLocal(streamdata, localkey)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
+		return locationIDs, outputIDs, err
+	}
+	r = bytes.NewReader(decrypted)
+	switch lsk[keytype] {
+	case "Audios",
+		"StickerImages":
+		header := audioStruct{}
+		err := binary.Read(r, binary.BigEndian, &header)
+		if err != nil {
+			return locationIDs, outputIDs, err
+		}
+		data := make([]byte, header.Len)
+		n, err := r.Read(data)
+		if err != nil {
+			return locationIDs, outputIDs, err
+		}
+		outputIDs = append(outputIDs, FirstSecond{
+			Filename: decryptedfile,
+			First:    header.First,
+			Second:   header.Second,
+			Size:     header.Len,
+		})
+		ioutil.WriteFile(decryptedfile, data[:n], 0644)
+	case "Images":
+		header := imageStruct{}
+		err := binary.Read(r, binary.BigEndian, &header)
+		if err != nil {
+			return locationIDs, outputIDs, err
+		}
+		data := make([]byte, header.Len)
+		n, err := r.Read(data)
+		if err != nil {
+			return locationIDs, outputIDs, err
+		}
+		outputIDs = append(outputIDs, FirstSecond{
+			Filename: decryptedfile,
+			First:    header.First,
+			Second:   header.Second,
+			Size:     header.Len,
+		})
+		ioutil.WriteFile(decryptedfile, data[:n], 0644)
+	case "Locations":
+		fullLen := uint32(0)
+		err := binary.Read(r, binary.BigEndian, &fullLen)
+		if err != nil {
+			return locationIDs, outputIDs, err
+		}
+		location := locationStruct{}
+		for {
+			err := binary.Read(r, binary.BigEndian, &location.First)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Second)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Legacytype)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Len)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			if location.Len == -1 {
+				break
+			}
+			location.Filename = make([]byte, location.Len)
+			n, err := r.Read(location.Filename)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			_, err = r.Read(location.Bookmark[:])
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Date)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Time)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			err = binary.Read(r, binary.BigEndian, &location.Size)
+			if err != nil {
+				return locationIDs, outputIDs, err
+			}
+			locationIDs = append(locationIDs, FirstSecond{
+				First:    location.First,
+				Second:   location.Second,
+				Filename: ConvertUtf16(location.Filename[:n]),
+				Size:     location.Size,
+			})
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "%s stream type is not fully supported yet: it was decrypted but not parsed\n", lsk[keytype])
+		ioutil.WriteFile(decryptedfile, decrypted, 0644)
+	}
+	return locationIDs, outputIDs, nil
 }
 
 var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 func qDateTime(qDate uint64, qTime uint32) time.Time {
 	return epoch.Add(time.Hour * time.Duration(24*(qDate-2440588))).Add(time.Millisecond * time.Duration(qTime))
+}
+
+func ConvertUtf16(b []byte) string {
+	result := make([]uint16, len(b)/2)
+	for i := 0; i < len(b); i += 2 {
+		result[i/2] = binary.BigEndian.Uint16(b[i : i+2])
+	}
+	return string(utf16.Decode(result))
 }
 
 type imageStruct struct {
@@ -404,4 +508,16 @@ type audioStruct struct {
 	First   uint64
 	Second  uint64
 	Len     uint32
+}
+
+type locationStruct struct {
+	First      uint64
+	Second     uint64
+	Legacytype uint32
+	Len        int32
+	Filename   []byte
+	Bookmark   [5]byte
+	Date       uint64
+	Time       uint32
+	Size       uint32
 }
