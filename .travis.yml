@@ -1,0 +1,57 @@
+language: go
+sudo: false
+matrix:
+  include:
+    # "1.x" always refers to the latest Go version, inc. the patch release.
+    # e.g. "1.x" is 1.11 until 1.11.1 is available.
+    - go: 1.x
+      env:
+        - LATEST=true
+    # - go: 1.7.x
+    # - go: 1.8.x
+    # - go: 1.9.x
+    # - go: 1.10.x
+    # - go: 1.11.x
+
+before_install:
+  # gox simplifies building for multiple architectures
+  - go get github.com/mitchellh/gox
+
+install:
+  - # skip
+
+script:
+  - go get -t -v ./...
+  - diff -u <(echo -n) <(gofmt -d .)
+  # - go vet $(go list ./... | grep -v /vendor/)
+  - go test -v -race ./...
+  - CGO_ENABLED=0 gox ./...
+
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key: $GITHUB_TOKEN
+  file:
+  - telegram-desktop-decrypt_darwin_386
+  - telegram-desktop-decrypt_darwin_amd64
+  - telegram-desktop-decrypt_freebsd_386
+  - telegram-desktop-decrypt_freebsd_amd64
+  # - telegram-desktop-decrypt_freebsd_arm
+  - telegram-desktop-decrypt_linux_386
+  - telegram-desktop-decrypt_linux_amd64
+  # - telegram-desktop-decrypt_linux_arm
+  # - telegram-desktop-decrypt_linux_mips
+  # - telegram-desktop-decrypt_linux_mips64
+  # - telegram-desktop-decrypt_linux_mips64le
+  # - telegram-desktop-decrypt_linux_mipsle
+  # - telegram-desktop-decrypt_linux_s390x
+  - telegram-desktop-decrypt_netbsd_386
+  - telegram-desktop-decrypt_netbsd_amd64
+  # - telegram-desktop-decrypt_netbsd_arm
+  - telegram-desktop-decrypt_openbsd_386
+  - telegram-desktop-decrypt_openbsd_amd64
+  - telegram-desktop-decrypt_windows_386.exe
+  - telegram-desktop-decrypt_windows_amd64.exe
+  on:
+    tags: true
+    condition: $LATEST = true
