@@ -1,10 +1,8 @@
-package main
+package tdata
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,128 +11,9 @@ import (
 	"path"
 	"time"
 	"unicode/utf16"
+
+	"github.com/atilaromero/telegram-desktop-decrypt/decrypt"
 )
-
-func ReadStream(r io.Reader) ([]byte, error) {
-	var streamSize uint32
-	err := binary.Read(r, binary.BigEndian, &streamSize)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]byte, streamSize)
-	n, err := r.Read(result)
-	return result[:n], err
-}
-
-// TdataFile is the generic structure of a tdata file.
-type TdataFile struct {
-	Version    uint32
-	PartialMD5 [16]byte
-	CorrectMD5 bool
-	Data       []byte
-}
-
-// ReadTdataFile interprets the generic structure of a tdata file,
-// reading the TDF$ magic bytes, version, and checking the 16bytes partial MD5 at the end.
-func ReadTdataFile(f io.Reader) (TdataFile, error) {
-	result := TdataFile{}
-	var magic [4]byte
-	_, err := f.Read(magic[:])
-	if err != nil {
-		return result, fmt.Errorf("could not read magic: %v", err)
-	}
-	if string(magic[:]) != "TDF$" {
-		return result, fmt.Errorf("wrong magic")
-	}
-	err = binary.Read(f, binary.LittleEndian, &result.Version)
-	if err != nil {
-		return result, fmt.Errorf("could not read version: %v", err)
-	}
-	readAll, err := ioutil.ReadAll(f)
-	if err != nil {
-		return result, fmt.Errorf("could not read all file: %v", err)
-	}
-	dataSize := len(readAll) - 16
-	result.Data = make([]byte, dataSize)
-	copy(result.Data, readAll[:dataSize])
-	copy(result.PartialMD5[:], readAll[dataSize:])
-	calcMD5 := md5.New()
-	calcMD5.Write(readAll[:dataSize])
-	binary.Write(calcMD5, binary.LittleEndian, int32(dataSize))
-	binary.Write(calcMD5, binary.LittleEndian, result.Version)
-	calcMD5.Write(magic[:])
-	gotMD5 := calcMD5.Sum([]byte{})
-	result.CorrectMD5 = (string(result.PartialMD5[:]) == string(gotMD5[:16]))
-	if !result.CorrectMD5 {
-		err = fmt.Errorf("MD5 does not match. Expected %s, got %s",
-			hex.EncodeToString(result.PartialMD5[:]),
-			hex.EncodeToString(gotMD5[:16]))
-	}
-	return result, err
-}
-
-func (stat TdataFile) Print(verbose bool) {
-	fmt.Printf("version\t%d\n", stat.Version)
-	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(stat.PartialMD5[:]))
-	fmt.Printf("correctMD5\t%t\n", stat.CorrectMD5)
-	fmt.Printf("dataLength\t%d\n", len(stat.Data))
-	var i int
-	r := bytes.NewReader(stat.Data)
-	for buf, err := ReadStream(r); err != io.EOF; buf, err = ReadStream(r) {
-		if err != nil {
-			log.Fatalf("error reading stream: %v", err)
-		}
-		if verbose {
-			fmt.Printf("stream %3d\t%s\n", i, hex.EncodeToString(buf))
-		} else {
-			fmt.Printf("stream %3d\t%d\n", i, len(buf))
-		}
-		i++
-	}
-}
-
-// TdataSettings reflects the streams contained in the tdata/settings0 file.
-type TdataSettings struct {
-	Salt      []byte
-	Encrypted []byte
-}
-
-// ReadTdataSettings opens the tdata/settings0 or tdata/settings1
-func ReadTdataSettings(f io.Reader) (TdataSettings, error) {
-	result := TdataSettings{}
-	tfile, err := ReadTdataFile(f)
-	if err != nil {
-		return result, fmt.Errorf("could not interpret file, error: %v", err)
-	}
-	mydata := bytes.NewReader(tfile.Data)
-	result.Salt, err = ReadStream(mydata)
-	if err != nil {
-		return result, fmt.Errorf("could not read salt: %v", err)
-	}
-	result.Encrypted, err = ReadStream(mydata)
-	if err != nil {
-		return result, fmt.Errorf("could not read settingsEncrypted: %v", err)
-	}
-	return result, err
-	// fmt.Printf("settingsKey (%d):\n", len(settingsKey))
-	// fmt.Println(hex.EncodeToString(settingsKey[:]))
-}
-func (settings TdataSettings) GetKey(password string) []byte {
-	settingsKey := CreateLocalKey([]byte(password), settings.Salt)
-	return settingsKey
-}
-func (settings TdataSettings) Decrypt(settingsKey []byte) ([]byte, error) {
-	decrypted, err := DecryptLocal(settings.Encrypted, settingsKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not decrypt settings file: %v", err)
-	}
-	return decrypted, nil
-}
-
-func (settings TdataSettings) Print() {
-	fmt.Printf("salt\t%s\n", hex.EncodeToString(settings.Salt))
-	fmt.Printf("encrypted\t%s\n", hex.EncodeToString(settings.Encrypted))
-}
 
 // TdataMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
 type TdataMap struct {
@@ -167,8 +46,8 @@ func ReadTdataMap(f io.Reader) (TdataMap, error) {
 }
 
 func (tdatamap TdataMap) GetKey(password string) ([]byte, error) {
-	passkey := CreateLocalKey([]byte(password), tdatamap.Salt)
-	localkey, err := DecryptLocal(tdatamap.KeyEncrypted, passkey)
+	passkey := decrypt.CreateLocalKey([]byte(password), tdatamap.Salt)
+	localkey, err := decrypt.DecryptLocal(tdatamap.KeyEncrypted, passkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map file: %v", err)
 	}
@@ -180,7 +59,7 @@ func (tdatamap TdataMap) GetKey(password string) ([]byte, error) {
 }
 
 func (tdatamap TdataMap) Decrypt(localkey []byte) ([]byte, error) {
-	decrypted, err := DecryptLocal(tdatamap.MapEncrypted, localkey)
+	decrypted, err := decrypt.DecryptLocal(tdatamap.MapEncrypted, localkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map file: %v", err)
 	}
@@ -362,17 +241,17 @@ func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 		log.Fatalf("could not open file '%s': %v", encryptedfile, err)
 	}
 	defer f.Close()
-	tdata, err := ReadTdataFile(f)
+	td, err := ReadTdataFile(f)
 	if err != nil {
 		log.Fatalf("error reading tdata file: %v", err)
 	}
-	r := bytes.NewReader(tdata.Data)
+	r := bytes.NewReader(td.Data)
 	streamdata, err := ReadStream(r)
 	if err != nil {
 		log.Fatalf("could not read stream: %v", err)
 	}
 	f.Close()
-	decrypted, err := DecryptLocal(streamdata, localkey)
+	decrypted, err := decrypt.DecryptLocal(streamdata, localkey)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
 		return locationIDs, outputIDs, err
@@ -481,18 +360,18 @@ func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 	return locationIDs, outputIDs, nil
 }
 
-var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
-
-func qDateTime(qDate uint64, qTime uint32) time.Time {
-	return epoch.Add(time.Hour * time.Duration(24*(qDate-2440588))).Add(time.Millisecond * time.Duration(qTime))
-}
-
 func ConvertUtf16(b []byte) string {
 	result := make([]uint16, len(b)/2)
 	for i := 0; i < len(b); i += 2 {
 		result[i/2] = binary.BigEndian.Uint16(b[i : i+2])
 	}
 	return string(utf16.Decode(result))
+}
+
+var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+func qDateTime(qDate uint64, qTime uint32) time.Time {
+	return epoch.Add(time.Hour * time.Duration(24*(qDate-2440588))).Add(time.Millisecond * time.Duration(qTime))
 }
 
 type imageStruct struct {

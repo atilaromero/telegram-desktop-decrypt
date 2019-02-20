@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/atilaromero/telegram-desktop-decrypt/decrypt"
+	"github.com/atilaromero/telegram-desktop-decrypt/tdata"
+
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +31,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatafile, err := ReadTdataFile(f)
+			tdatafile, err := tdata.ReadTdataFile(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -54,7 +57,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			settings, err := ReadTdataSettings(f)
+			settings, err := tdata.ReadTdataSettings(f)
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
@@ -75,7 +78,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			settings, err := ReadTdataSettings(f)
+			settings, err := tdata.ReadTdataSettings(f)
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
@@ -103,7 +106,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTdataMap(f)
 			if err != nil {
 				log.Fatalf("could not interpret map file: %v", err)
 			}
@@ -126,7 +129,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTdataMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -153,7 +156,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTdataMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -188,19 +191,19 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdata, err := ReadTdataFile(f)
+			td, err := tdata.ReadTdataFile(f)
 			if err != nil {
 				log.Fatalf("error reading tdata file: %v", err)
 			}
 			var streamdata []byte
-			r := bytes.NewReader(tdata.Data)
+			r := bytes.NewReader(td.Data)
 			for i := 0; i <= stream; i++ {
-				streamdata, err = ReadStream(r)
+				streamdata, err = tdata.ReadStream(r)
 				if err != nil {
 					log.Fatalf("could not read stream %d: %v", i, err)
 				}
 			}
-			decrypted, err := DecryptLocal(streamdata, key)
+			decrypted, err := decrypt.DecryptLocal(streamdata, key)
 			if err != nil {
 				log.Fatalf("could not decrypt file: %v", err)
 			}
@@ -227,7 +230,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", mappath, err)
 			}
 			defer f.Close()
-			tdatamap, err := ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTdataMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
