@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/atilaromero/telegram-desktop-decrypt/decrypt"
@@ -238,7 +240,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = tdatamap.BulkDecrypt(localkey, srcdir, outdir)
+			err = BulkDecrypt(tdatamap, localkey, srcdir, outdir)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -248,4 +250,65 @@ func main() {
 	rootCmd.AddCommand(cmdBulkDecrypt)
 
 	rootCmd.Execute()
+}
+
+func BulkDecrypt(tdatamap tdata.TdataMap, localkey []byte, srcdir string, outdir string) error {
+	listkeys, err := tdatamap.ListKeys(localkey)
+	if err != nil {
+		return err
+	}
+	files, err := ioutil.ReadDir(srcdir)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(outdir, 0755)
+	if err != nil {
+		return fmt.Errorf("outdir should not exist: %v", err)
+	}
+	lf, err := os.Create(path.Join(outdir, "locations.csv"))
+	if err != nil {
+		return fmt.Errorf("could not create locations.csv: %v", err)
+	}
+	defer lf.Close()
+	filesf, err := os.Create(path.Join(outdir, "files.csv"))
+	if err != nil {
+		return fmt.Errorf("could not create files.csv: %v", err)
+	}
+	defer filesf.Close()
+	for _, fpath := range files {
+		if fpath.Name() == "map0" || fpath.Name() == "map1" {
+			continue
+		}
+		reversedkey := fpath.Name()[:len(fpath.Name())-1]
+		key := ""
+		for _, c := range reversedkey {
+			key = string(c) + key
+		}
+		var typename string
+		keytype, ok := listkeys[key]
+		if ok {
+			typename = tdata.LSK[keytype]
+		} else {
+			typename = "Unknown"
+		}
+		keytypepath := path.Join(outdir, typename)
+		os.Mkdir(keytypepath, 0755) // ignore error
+		if typename == "Images" {
+			keytypepath = path.Join(keytypepath, fpath.Name()[:2])
+			os.Mkdir(keytypepath, 0755) // ignore error
+		}
+		encryptedfile := path.Join(srcdir, fpath.Name())
+		decryptedfile := path.Join(keytypepath, fpath.Name())
+		newlocationIDs, newoutputIDs, err := tdata.SaveDecrypted(localkey, encryptedfile, decryptedfile, keytype)
+		if err != nil {
+			return err
+		}
+		for _, l := range newlocationIDs {
+			fmt.Fprintf(lf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+		}
+		for _, l := range newoutputIDs {
+			fmt.Fprintf(filesf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+		}
+	}
+	return nil
 }

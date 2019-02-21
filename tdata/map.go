@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"time"
 	"unicode/utf16"
 
@@ -29,32 +28,27 @@ func ReadTdataMap(f io.Reader) (TdataMap, error) {
 	if err != nil {
 		return result, fmt.Errorf("could not interpret file, error: %v", err)
 	}
-	mydata := bytes.NewReader(tfile.Data)
-	result.Salt, err = ReadStream(mydata)
+	streams, err := ReadStreams(tfile.Data)
 	if err != nil {
-		return result, fmt.Errorf("could not read salt: %v", err)
+		return result, fmt.Errorf("could not read map streams: %v", err)
 	}
-	result.KeyEncrypted, err = ReadStream(mydata)
-	if err != nil {
-		return result, fmt.Errorf("could not read keyEncrypted: %v", err)
-	}
-	result.MapEncrypted, err = ReadStream(mydata)
-	if err != nil {
-		return result, fmt.Errorf("could not read mapEncrypted: %v", err)
-	}
+	result.Salt = streams[0]
+	result.KeyEncrypted = streams[1]
+	result.MapEncrypted = streams[2]
 	return result, err
 }
 
 func (tdatamap TdataMap) GetKey(password string) ([]byte, error) {
 	passkey := decrypt.CreateLocalKey([]byte(password), tdatamap.Salt)
-	localkey, err := decrypt.DecryptLocal(tdatamap.KeyEncrypted, passkey)
+	decrypted, err := decrypt.DecryptLocal(tdatamap.KeyEncrypted, passkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map file: %v", err)
 	}
-	localkey, err = ReadStream(bytes.NewReader(localkey))
+	streams, err := ReadStreams(decrypted)
 	if err != nil {
-		return nil, fmt.Errorf("could not read localkey stream: %v", err)
+		return nil, fmt.Errorf("could not read streams: %v", err)
 	}
+	localkey := streams[0]
 	return localkey, nil
 }
 
@@ -66,7 +60,7 @@ func (tdatamap TdataMap) Decrypt(localkey []byte) ([]byte, error) {
 	return decrypted, nil
 }
 
-var lsk = map[uint32]string{
+var LSK = map[uint32]string{
 	0x00: "UserMap",
 	0x01: "Draft",
 	0x02: "DraftPosition",
@@ -110,7 +104,7 @@ func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
 		if err != nil {
 			return result, err
 		}
-		switch lsk[keytype] {
+		switch LSK[keytype] {
 		case "SelfSerialized",
 			"Locations",
 			"ReportSpamStatuses",
@@ -164,67 +158,6 @@ func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
 	}
 }
 
-func (tdatamap TdataMap) BulkDecrypt(localkey []byte, srcdir string, outdir string) error {
-	listkeys, err := tdatamap.ListKeys(localkey)
-	if err != nil {
-		return err
-	}
-	files, err := ioutil.ReadDir(srcdir)
-	if err != nil {
-		return err
-	}
-	err = os.Mkdir(outdir, 0755)
-	if err != nil {
-		return fmt.Errorf("outdir should not exist: %v", err)
-	}
-	lf, err := os.Create(path.Join(outdir, "locations.csv"))
-	if err != nil {
-		return fmt.Errorf("could not create locations.csv: %v", err)
-	}
-	defer lf.Close()
-	filesf, err := os.Create(path.Join(outdir, "files.csv"))
-	if err != nil {
-		return fmt.Errorf("could not create files.csv: %v", err)
-	}
-	defer filesf.Close()
-	for _, fpath := range files {
-		if fpath.Name() == "map0" || fpath.Name() == "map1" {
-			continue
-		}
-		reversedkey := fpath.Name()[:len(fpath.Name())-1]
-		key := ""
-		for _, c := range reversedkey {
-			key = string(c) + key
-		}
-		var typename string
-		keytype, ok := listkeys[key]
-		if ok {
-			typename = lsk[keytype]
-		} else {
-			typename = "Unknown"
-		}
-		keytypepath := path.Join(outdir, typename)
-		os.Mkdir(keytypepath, 0755) // ignore error
-		if typename == "Images" {
-			keytypepath = path.Join(keytypepath, fpath.Name()[:2])
-			os.Mkdir(keytypepath, 0755) // ignore error
-		}
-		encryptedfile := path.Join(srcdir, fpath.Name())
-		decryptedfile := path.Join(keytypepath, fpath.Name())
-		newlocationIDs, newoutputIDs, err := saveDecrypted(localkey, encryptedfile, decryptedfile, keytype)
-		if err != nil {
-			return err
-		}
-		for _, l := range newlocationIDs {
-			fmt.Fprintf(lf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
-		}
-		for _, l := range newoutputIDs {
-			fmt.Fprintf(filesf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
-		}
-	}
-	return nil
-}
-
 type FirstSecond struct {
 	First    uint64
 	Second   uint64
@@ -232,7 +165,7 @@ type FirstSecond struct {
 	Size     uint32
 }
 
-func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, keytype uint32) (locationIDs, outputIDs []FirstSecond, err error) {
+func SaveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, keytype uint32) (locationIDs, outputIDs []FirstSecond, err error) {
 	locationIDs = []FirstSecond{}
 	outputIDs = []FirstSecond{}
 
@@ -245,19 +178,18 @@ func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 	if err != nil {
 		log.Fatalf("error reading tdata file: %v", err)
 	}
-	r := bytes.NewReader(td.Data)
-	streamdata, err := ReadStream(r)
+	streams, err := ReadStreams(td.Data)
 	if err != nil {
 		log.Fatalf("could not read stream: %v", err)
 	}
 	f.Close()
-	decrypted, err := decrypt.DecryptLocal(streamdata, localkey)
+	decrypted, err := decrypt.DecryptLocal(streams[0], localkey)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
 		return locationIDs, outputIDs, err
 	}
-	r = bytes.NewReader(decrypted)
-	switch lsk[keytype] {
+	r := bytes.NewReader(decrypted)
+	switch LSK[keytype] {
 	case "Audios",
 		"StickerImages":
 		header := audioStruct{}
@@ -354,7 +286,7 @@ func saveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 			})
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "%s stream type is not fully supported yet: it was decrypted but not parsed\n", lsk[keytype])
+		fmt.Fprintf(os.Stderr, "%s stream type is not fully supported yet: it was decrypted but not parsed\n", LSK[keytype])
 		ioutil.WriteFile(decryptedfile, decrypted, 0644)
 	}
 	return locationIDs, outputIDs, nil

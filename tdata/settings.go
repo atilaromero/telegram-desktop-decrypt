@@ -1,7 +1,6 @@
 package tdata
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -22,15 +21,12 @@ func ReadTdataSettings(f io.Reader) (TdataSettings, error) {
 	if err != nil {
 		return result, fmt.Errorf("could not interpret file, error: %v", err)
 	}
-	mydata := bytes.NewReader(tfile.Data)
-	result.Salt, err = ReadStream(mydata)
+	streams, err := ReadStreams(tfile.Data)
 	if err != nil {
-		return result, fmt.Errorf("could not read salt: %v", err)
+		return result, fmt.Errorf("could not read streams: %v", err)
 	}
-	result.Encrypted, err = ReadStream(mydata)
-	if err != nil {
-		return result, fmt.Errorf("could not read settingsEncrypted: %v", err)
-	}
+	result.Salt = streams[0]
+	result.Encrypted = streams[1]
 	return result, err
 	// fmt.Printf("settingsKey (%d):\n", len(settingsKey))
 	// fmt.Println(hex.EncodeToString(settingsKey[:]))

@@ -58,17 +58,17 @@ func ReadTdataFile(f io.Reader) (TdataFile, error) {
 	return result, err
 }
 
-func (stat TdataFile) Print(verbose bool) {
-	fmt.Printf("version\t%d\n", stat.Version)
-	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(stat.PartialMD5[:]))
-	fmt.Printf("correctMD5\t%t\n", stat.CorrectMD5)
-	fmt.Printf("dataLength\t%d\n", len(stat.Data))
+func (td TdataFile) Print(verbose bool) {
+	fmt.Printf("version\t%d\n", td.Version)
+	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(td.PartialMD5[:]))
+	fmt.Printf("correctMD5\t%t\n", td.CorrectMD5)
+	fmt.Printf("dataLength\t%d\n", len(td.Data))
 	var i int
-	r := bytes.NewReader(stat.Data)
-	for buf, err := ReadStream(r); err != io.EOF; buf, err = ReadStream(r) {
-		if err != nil {
-			log.Fatalf("error reading stream: %v", err)
-		}
+	bufs, err := ReadStreams(td.Data)
+	if err != nil {
+		log.Fatalf("error reading stream: %v", err)
+	}
+	for _, buf := range bufs {
 		if verbose {
 			fmt.Printf("stream %3d\t%s\n", i, hex.EncodeToString(buf))
 		} else {
@@ -78,7 +78,18 @@ func (stat TdataFile) Print(verbose bool) {
 	}
 }
 
-// TODO: create to func (t TdataFile) ReadStreams() ([][]bytes, error)
+func ReadStreams(b []byte) ([][]byte, error) {
+	result := [][]byte{}
+	r := bytes.NewReader(b)
+	for buf, err := ReadStream(r); err != io.EOF; buf, err = ReadStream(r) {
+		if err != nil {
+			return nil, fmt.Errorf("error reading stream: %v", err)
+		}
+		result = append(result, buf)
+	}
+	return result, nil
+}
+
 // TODO: cheack ReadStream references and maybe convert them to ReadStreams()
 
 func ReadStream(r io.Reader) ([]byte, error) {
