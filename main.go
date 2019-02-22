@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/atilaromero/telegram-desktop-decrypt/tdata/encrypted"
 
 	"github.com/atilaromero/telegram-desktop-decrypt/decrypt"
 	"github.com/atilaromero/telegram-desktop-decrypt/tdata"
@@ -33,7 +34,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatafile, err := tdata.ReadFile(f)
+			tdatafile, err := tdata.ReadPhysical(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -59,7 +60,11 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			settings, err := tdata.ReadTdataSettings(f)
+			tdatafile, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatal(err)
+			}
+			settings, err := encrypted.ToSettings(tdatafile)
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
@@ -80,7 +85,11 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			settings, err := tdata.ReadTdataSettings(f)
+			tdatafile, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatal(err)
+			}
+			settings, err := encrypted.ToSettings(tdatafile)
 			if err != nil {
 				log.Fatalf("could not interpret settings file: %v", err)
 			}
@@ -108,11 +117,15 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTMap(f)
+			td, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatalf("could not interpret file '%s': %v", filename, err)
+			}
+			tmap, err := encrypted.ToTMap(td)
 			if err != nil {
 				log.Fatalf("could not interpret map file: %v", err)
 			}
-			localkey, err := tdatamap.GetKey(password)
+			localkey, err := tmap.GetKey(password)
 			if err != nil {
 				log.Fatalf("could not decrypt map file: %v", err)
 			}
@@ -131,15 +144,19 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTMap(f)
+			td, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatalf("could not interpret file '%s': %v", filename, err)
+			}
+			tmap, err := encrypted.ToTMap(td)
 			if err != nil {
 				log.Fatal(err)
 			}
-			localkey, err := tdatamap.GetKey(password)
+			localkey, err := tmap.GetKey(password)
 			if err != nil {
 				log.Fatal(err)
 			}
-			decrypted, err := tdatamap.Decrypt(localkey)
+			decrypted, err := tmap.Decrypt(localkey)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -158,15 +175,19 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTMap(f)
+			td, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatalf("could not interpret file '%s': %v", filename, err)
+			}
+			tmap, err := encrypted.ToTMap(td)
 			if err != nil {
 				log.Fatal(err)
 			}
-			localkey, err := tdatamap.GetKey(password)
+			localkey, err := tmap.GetKey(password)
 			if err != nil {
 				log.Fatal(err)
 			}
-			listedkeys, err := tdatamap.ListKeys(localkey)
+			listedkeys, err := tmap.ListKeys(localkey)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -193,19 +214,15 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			td, err := tdata.ReadFile(f)
+			td, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatalf("could not interpret file '%s': %v", filename, err)
+			}
+			cache, err := encrypted.ToCache(td)
 			if err != nil {
 				log.Fatalf("error reading tdata file: %v", err)
 			}
-			var streamdata []byte
-			r := bytes.NewReader(td.Data)
-			for i := 0; i <= stream; i++ {
-				streamdata, err = tdata.ReadQtStream(r)
-				if err != nil {
-					log.Fatalf("could not read stream %d: %v", i, err)
-				}
-			}
-			decrypted, err := decrypt.DecryptLocal(streamdata, key)
+			decrypted, err := decrypt.DecryptLocal(cache.Encrypted, key)
 			if err != nil {
 				log.Fatalf("could not decrypt file: %v", err)
 			}
@@ -232,15 +249,19 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", mappath, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTMap(f)
+			td, err := tdata.ReadPhysical(f)
+			if err != nil {
+				log.Fatalf("could not interpret file '%s': %v", mappath, err)
+			}
+			tmap, err := encrypted.ToTMap(td)
 			if err != nil {
 				log.Fatal(err)
 			}
-			localkey, err := tdatamap.GetKey(password)
+			localkey, err := tmap.GetKey(password)
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = BulkDecrypt(tdatamap, localkey, srcdir, outdir)
+			err = BulkDecrypt(tmap, localkey, srcdir, outdir)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -252,7 +273,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-func BulkDecrypt(tdatamap tdata.TMap, localkey []byte, srcdir string, outdir string) error {
+func BulkDecrypt(tdatamap encrypted.TMap, localkey []byte, srcdir string, outdir string) error {
 	listkeys, err := tdatamap.ListKeys(localkey)
 	if err != nil {
 		return err
@@ -287,7 +308,7 @@ func BulkDecrypt(tdatamap tdata.TMap, localkey []byte, srcdir string, outdir str
 		var typename string
 		keytype, ok := listkeys[key]
 		if ok {
-			typename = tdata.LSK[keytype]
+			typename = encrypted.LSK[keytype]
 		} else {
 			typename = "Unknown"
 		}
@@ -304,13 +325,13 @@ func BulkDecrypt(tdatamap tdata.TMap, localkey []byte, srcdir string, outdir str
 			log.Fatalf("could not open file '%s': %v", encryptedfile, err)
 		}
 		defer f.Close()
-		td, err := tdata.ReadFile(f)
+		td, err := tdata.ReadPhysical(f)
 		if err != nil {
 			log.Fatalf("error reading tdata file: %v", err)
 		}
 		f.Close()
 
-		data, newlocationIDs, err := tdata.SaveDecrypted(localkey, td, keytype)
+		data, newlocationIDs, err := encrypted.SaveDecrypted(localkey, td, keytype)
 		if err != nil {
 			return err
 		}
