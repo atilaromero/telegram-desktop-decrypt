@@ -1,7 +1,6 @@
 package tdata
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
@@ -11,18 +10,18 @@ import (
 	"log"
 )
 
-// TdataFile is the generic structure of a tdata file.
-type TdataFile struct {
+// File is the generic structure of a tdata file.
+type File struct {
 	Version    uint32
 	PartialMD5 [16]byte
 	CorrectMD5 bool
 	Data       []byte
 }
 
-// ReadTdataFile interprets the generic structure of a tdata file,
+// ReadFile interprets the generic structure of a tdata file,
 // reading the TDF$ magic bytes, version, and checking the 16bytes partial MD5 at the end.
-func ReadTdataFile(f io.Reader) (TdataFile, error) {
-	result := TdataFile{}
+func ReadFile(f io.Reader) (File, error) {
+	result := File{}
 	var magic [4]byte
 	_, err := f.Read(magic[:])
 	if err != nil {
@@ -58,13 +57,14 @@ func ReadTdataFile(f io.Reader) (TdataFile, error) {
 	return result, err
 }
 
-func (td TdataFile) Print(verbose bool) {
+// Print general information about this encrypted file
+func (td File) Print(verbose bool) {
 	fmt.Printf("version\t%d\n", td.Version)
 	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(td.PartialMD5[:]))
 	fmt.Printf("correctMD5\t%t\n", td.CorrectMD5)
 	fmt.Printf("dataLength\t%d\n", len(td.Data))
 	var i int
-	bufs, err := ReadStreams(td.Data)
+	bufs, err := ReadQtStreams(td.Data)
 	if err != nil {
 		log.Fatalf("error reading stream: %v", err)
 	}
@@ -76,29 +76,4 @@ func (td TdataFile) Print(verbose bool) {
 		}
 		i++
 	}
-}
-
-func ReadStreams(b []byte) ([][]byte, error) {
-	result := [][]byte{}
-	r := bytes.NewReader(b)
-	for buf, err := ReadStream(r); err != io.EOF; buf, err = ReadStream(r) {
-		if err != nil {
-			return nil, fmt.Errorf("error reading stream: %v", err)
-		}
-		result = append(result, buf)
-	}
-	return result, nil
-}
-
-// TODO: cheack ReadStream references and maybe convert them to ReadStreams()
-
-func ReadStream(r io.Reader) ([]byte, error) {
-	var streamSize uint32
-	err := binary.Read(r, binary.BigEndian, &streamSize)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]byte, streamSize)
-	n, err := r.Read(result)
-	return result[:n], err
 }

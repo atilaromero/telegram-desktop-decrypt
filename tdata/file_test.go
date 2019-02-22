@@ -6,9 +6,9 @@ import (
 	"log"
 )
 
-func ExampleTdataFile_Print() {
+func ExampleFile_Print() {
 	settings0, _ := hex.DecodeString(hexSettings0) // hexSettings0 is at settings_test.go
-	tdatafile, err := ReadTdataFile(bytes.NewReader(settings0))
+	tdatafile, err := ReadFile(bytes.NewReader(settings0))
 	if err != nil {
 		log.Fatal(err)
 	}

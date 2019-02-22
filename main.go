@@ -33,7 +33,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatafile, err := tdata.ReadTdataFile(f)
+			tdatafile, err := tdata.ReadFile(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -108,7 +108,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTMap(f)
 			if err != nil {
 				log.Fatalf("could not interpret map file: %v", err)
 			}
@@ -131,7 +131,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -158,7 +158,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -193,14 +193,14 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", filename, err)
 			}
 			defer f.Close()
-			td, err := tdata.ReadTdataFile(f)
+			td, err := tdata.ReadFile(f)
 			if err != nil {
 				log.Fatalf("error reading tdata file: %v", err)
 			}
 			var streamdata []byte
 			r := bytes.NewReader(td.Data)
 			for i := 0; i <= stream; i++ {
-				streamdata, err = tdata.ReadStream(r)
+				streamdata, err = tdata.ReadQtStream(r)
 				if err != nil {
 					log.Fatalf("could not read stream %d: %v", i, err)
 				}
@@ -232,7 +232,7 @@ func main() {
 				log.Fatalf("could not open file '%s': %v", mappath, err)
 			}
 			defer f.Close()
-			tdatamap, err := tdata.ReadTdataMap(f)
+			tdatamap, err := tdata.ReadTMap(f)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -252,7 +252,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-func BulkDecrypt(tdatamap tdata.TdataMap, localkey []byte, srcdir string, outdir string) error {
+func BulkDecrypt(tdatamap tdata.TMap, localkey []byte, srcdir string, outdir string) error {
 	listkeys, err := tdatamap.ListKeys(localkey)
 	if err != nil {
 		return err
@@ -299,15 +299,29 @@ func BulkDecrypt(tdatamap tdata.TdataMap, localkey []byte, srcdir string, outdir
 		}
 		encryptedfile := path.Join(srcdir, fpath.Name())
 		decryptedfile := path.Join(keytypepath, fpath.Name())
-		newlocationIDs, newoutputIDs, err := tdata.SaveDecrypted(localkey, encryptedfile, decryptedfile, keytype)
+		f, err := os.Open(encryptedfile)
+		if err != nil {
+			log.Fatalf("could not open file '%s': %v", encryptedfile, err)
+		}
+		defer f.Close()
+		td, err := tdata.ReadFile(f)
+		if err != nil {
+			log.Fatalf("error reading tdata file: %v", err)
+		}
+		f.Close()
+
+		data, newlocationIDs, err := tdata.SaveDecrypted(localkey, td, keytype)
 		if err != nil {
 			return err
 		}
+		ioutil.WriteFile(decryptedfile, data, 0644)
+
 		for _, l := range newlocationIDs {
-			fmt.Fprintf(lf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
-		}
-		for _, l := range newoutputIDs {
-			fmt.Fprintf(filesf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+			if l.Filename != "" {
+				fmt.Fprintf(lf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, l.Filename)
+			} else {
+				fmt.Fprintf(filesf, "%16x\t%16x\t%d\t%s\n", l.First, l.Second, l.Size, decryptedfile)
+			}
 		}
 	}
 	return nil

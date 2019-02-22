@@ -17,11 +17,11 @@ type TdataSettings struct {
 // ReadTdataSettings opens the tdata/settings0 or tdata/settings1
 func ReadTdataSettings(f io.Reader) (TdataSettings, error) {
 	result := TdataSettings{}
-	tfile, err := ReadTdataFile(f)
+	tfile, err := ReadFile(f)
 	if err != nil {
 		return result, fmt.Errorf("could not interpret file, error: %v", err)
 	}
-	streams, err := ReadStreams(tfile.Data)
+	streams, err := ReadQtStreams(tfile.Data)
 	if err != nil {
 		return result, fmt.Errorf("could not read streams: %v", err)
 	}

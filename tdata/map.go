@@ -5,30 +5,28 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
-	"unicode/utf16"
 
 	"github.com/atilaromero/telegram-desktop-decrypt/decrypt"
 )
 
-// TdataMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
-type TdataMap struct {
+// TMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
+type TMap struct {
 	Salt         []byte
 	KeyEncrypted []byte
 	MapEncrypted []byte
 }
 
-// ReadTdataMap opens the map file
-func ReadTdataMap(f io.Reader) (TdataMap, error) {
-	result := TdataMap{}
-	tfile, err := ReadTdataFile(f)
+// ReadTMap opens the map file
+func ReadTMap(f io.Reader) (TMap, error) {
+	result := TMap{}
+	tfile, err := ReadFile(f)
 	if err != nil {
 		return result, fmt.Errorf("could not interpret file, error: %v", err)
 	}
-	streams, err := ReadStreams(tfile.Data)
+	streams, err := ReadQtStreams(tfile.Data)
 	if err != nil {
 		return result, fmt.Errorf("could not read map streams: %v", err)
 	}
@@ -38,13 +36,15 @@ func ReadTdataMap(f io.Reader) (TdataMap, error) {
 	return result, err
 }
 
-func (tdatamap TdataMap) GetKey(password string) ([]byte, error) {
+// GetKey extracts the global key from a map file.
+// That key will be used later to decrypt other files.
+func (tdatamap TMap) GetKey(password string) ([]byte, error) {
 	passkey := decrypt.CreateLocalKey([]byte(password), tdatamap.Salt)
-	decrypted, err := decrypt.DecryptLocal(tdatamap.KeyEncrypted, passkey)
+	decrypted, err := tdatamap.Decrypt(passkey)
 	if err != nil {
-		return nil, fmt.Errorf("could not decrypt map file: %v", err)
+		return nil, err
 	}
-	streams, err := ReadStreams(decrypted)
+	streams, err := ReadQtStreams(decrypted)
 	if err != nil {
 		return nil, fmt.Errorf("could not read streams: %v", err)
 	}
@@ -52,7 +52,7 @@ func (tdatamap TdataMap) GetKey(password string) ([]byte, error) {
 	return localkey, nil
 }
 
-func (tdatamap TdataMap) Decrypt(localkey []byte) ([]byte, error) {
+func (tdatamap TMap) Decrypt(localkey []byte) ([]byte, error) {
 	decrypted, err := decrypt.DecryptLocal(tdatamap.MapEncrypted, localkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map file: %v", err)
@@ -85,7 +85,7 @@ var LSK = map[uint32]string{
 	0x15: "SelfSerialized",
 }
 
-func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
+func (tdatamap TMap) ListKeys(localkey []byte) (map[string]uint32, error) {
 	result := make(map[string]uint32)
 	decrypted, err := tdatamap.Decrypt(localkey)
 	if err != nil {
@@ -161,32 +161,44 @@ func (tdatamap TdataMap) ListKeys(localkey []byte) (map[string]uint32, error) {
 type FirstSecond struct {
 	First    uint64
 	Second   uint64
-	Filename string
 	Size     uint32
+	Filename string
 }
 
-func SaveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, keytype uint32) (locationIDs, outputIDs []FirstSecond, err error) {
-	locationIDs = []FirstSecond{}
-	outputIDs = []FirstSecond{}
+type Mapped struct {
+	KeyType uint32
+	Data    []byte
+}
 
-	f, err := os.Open(encryptedfile)
-	if err != nil {
-		log.Fatalf("could not open file '%s': %v", encryptedfile, err)
+func (td File) ToMapped(localkey []byte, keytype uint32) (Mapped, error) {
+	mapped := Mapped{
+		KeyType: keytype,
 	}
-	defer f.Close()
-	td, err := ReadTdataFile(f)
+	streams, err := ReadQtStreams(td.Data)
 	if err != nil {
-		log.Fatalf("error reading tdata file: %v", err)
+		return mapped, fmt.Errorf("could not get mapped: %v", err)
 	}
-	streams, err := ReadStreams(td.Data)
+	if len(streams) != 1 {
+		return mapped, fmt.Errorf("can only call ToMapped on files with a single stream")
+	}
+	decrypted, err := decrypt.DecryptLocal(streams[0], localkey)
+	if err != nil {
+		return mapped, fmt.Errorf("could not decrypt file: %v\n", err)
+	}
+	mapped.Data = decrypted
+	return mapped, err
+}
+
+func SaveDecrypted(localkey []byte, td File, keytype uint32) (output []byte, firstSeconds []FirstSecond, err error) {
+	firstSeconds = []FirstSecond{}
+	streams, err := ReadQtStreams(td.Data)
 	if err != nil {
 		log.Fatalf("could not read stream: %v", err)
 	}
-	f.Close()
 	decrypted, err := decrypt.DecryptLocal(streams[0], localkey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not decrypt file (%s): %v\n", encryptedfile, err)
-		return locationIDs, outputIDs, err
+		fmt.Fprintf(os.Stderr, "could not decrypt file: %v\n", err)
+		return nil, firstSeconds, err
 	}
 	r := bytes.NewReader(decrypted)
 	switch LSK[keytype] {
@@ -195,43 +207,41 @@ func SaveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 		header := audioStruct{}
 		err := binary.Read(r, binary.BigEndian, &header)
 		if err != nil {
-			return locationIDs, outputIDs, err
+			return nil, firstSeconds, err
 		}
 		data := make([]byte, header.Len)
 		n, err := r.Read(data)
 		if err != nil {
-			return locationIDs, outputIDs, err
+			return nil, firstSeconds, err
 		}
-		outputIDs = append(outputIDs, FirstSecond{
-			Filename: decryptedfile,
-			First:    header.First,
-			Second:   header.Second,
-			Size:     header.Len,
+		firstSeconds = append(firstSeconds, FirstSecond{
+			First:  header.First,
+			Second: header.Second,
+			Size:   header.Len,
 		})
-		ioutil.WriteFile(decryptedfile, data[:n], 0644)
+		return data[:n], firstSeconds, nil
 	case "Images":
 		header := imageStruct{}
 		err := binary.Read(r, binary.BigEndian, &header)
 		if err != nil {
-			return locationIDs, outputIDs, err
+			return nil, firstSeconds, err
 		}
 		data := make([]byte, header.Len)
 		n, err := r.Read(data)
 		if err != nil {
-			return locationIDs, outputIDs, err
+			return nil, firstSeconds, err
 		}
-		outputIDs = append(outputIDs, FirstSecond{
-			Filename: decryptedfile,
-			First:    header.First,
-			Second:   header.Second,
-			Size:     header.Len,
+		firstSeconds = append(firstSeconds, FirstSecond{
+			First:  header.First,
+			Second: header.Second,
+			Size:   header.Len,
 		})
-		ioutil.WriteFile(decryptedfile, data[:n], 0644)
+		return data[:n], firstSeconds, nil
 	case "Locations":
 		fullLen := uint32(0)
 		err := binary.Read(r, binary.BigEndian, &fullLen)
 		if err != nil {
-			return locationIDs, outputIDs, err
+			return nil, firstSeconds, err
 		}
 		location := locationStruct{}
 		for {
@@ -240,19 +250,19 @@ func SaveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 				break
 			}
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Second)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Legacytype)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Len)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			if location.Len == -1 {
 				break
@@ -260,44 +270,36 @@ func SaveDecrypted(localkey []byte, encryptedfile string, decryptedfile string, 
 			location.Filename = make([]byte, location.Len)
 			n, err := r.Read(location.Filename)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			_, err = r.Read(location.Bookmark[:])
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Date)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Time)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
 			err = binary.Read(r, binary.BigEndian, &location.Size)
 			if err != nil {
-				return locationIDs, outputIDs, err
+				return nil, firstSeconds, err
 			}
-			locationIDs = append(locationIDs, FirstSecond{
+			firstSeconds = append(firstSeconds, FirstSecond{
 				First:    location.First,
 				Second:   location.Second,
 				Filename: ConvertUtf16(location.Filename[:n]),
 				Size:     location.Size,
 			})
 		}
+		return nil, firstSeconds, err
 	default:
 		fmt.Fprintf(os.Stderr, "%s stream type is not fully supported yet: it was decrypted but not parsed\n", LSK[keytype])
-		ioutil.WriteFile(decryptedfile, decrypted, 0644)
+		return decrypted, firstSeconds, err
 	}
-	return locationIDs, outputIDs, nil
-}
-
-func ConvertUtf16(b []byte) string {
-	result := make([]uint16, len(b)/2)
-	for i := 0; i < len(b); i += 2 {
-		result[i/2] = binary.BigEndian.Uint16(b[i : i+2])
-	}
-	return string(utf16.Decode(result))
 }
 
 var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
