@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/lunixbochs/struc"
 )
@@ -28,9 +29,9 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 		err := struc.Unpack(r, &result)
 		return result, err
 	case Locations:
-		locations := Locations{}
+		result := Locations{}
 		location := Location{}
-		err := binary.Read(r, binary.BigEndian, &locations.FullLen)
+		err := binary.Read(r, binary.BigEndian, &result.FullLen)
 		if err != nil {
 			return nil, err
 		}
@@ -40,12 +41,45 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 				break
 			}
 			if err != nil {
-				return locations, err
+				return result, err
 			}
-			locations.Locations = append(locations.Locations, location)
+			result.Locations = append(result.Locations, location)
 		}
-		return locations, nil
+		return result, nil
+	case ReportSpamStatuses:
+		result := ReportSpamStatuses{}
+		err := struc.Unpack(r, &result)
+		return result, err
+	case UserSettings:
+		result := UserSettings{}
+		err := struc.Unpack(r, &result.FullLen)
+		if err != nil {
+			return nil, err
+		}
+		var blockID uint32
+		for {
+			err := struc.Unpack(r, &blockID)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return result, err
+			}
+			readUserSetting(&result, blockID)
+		}
+		return result, nil
 	default:
 		return nil, fmt.Errorf("stream type is not fully supported yet: %v", LSK[keytype])
 	}
+}
+
+func readUserSetting(result *UserSettings, blockID uint32) error {
+	fieldName := DBI[blockID]
+	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
+	switch fieldName {
+	case "":
+		return nil
+	}
+	fmt.Println(field)
+	return nil
 }
