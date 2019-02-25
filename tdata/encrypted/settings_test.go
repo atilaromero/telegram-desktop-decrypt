@@ -13,11 +13,11 @@ const hexSettings0 string = "54444624ff4d0f000000002085b5adf5240b7d745b734fed4bf
 
 func ExampleEncryptedSettings_Print() {
 	settings0, _ := hex.DecodeString(hexSettings0)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(settings0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(settings0))
 	if err != nil {
 		fmt.Println(err)
 	}
-	settings, err := ToSettings(tfile)
+	settings, err := ReadESettings(rawtdf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,11 +29,11 @@ func ExampleEncryptedSettings_Print() {
 
 func ExampleEncryptedSettings_GetKey() {
 	settings0, _ := hex.DecodeString(hexSettings0)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(settings0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(settings0))
 	if err != nil {
 		fmt.Println(err)
 	}
-	settings, err := ToSettings(tfile)
+	settings, err := ReadESettings(rawtdf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,11 +43,11 @@ func ExampleEncryptedSettings_GetKey() {
 }
 func ExampleEncryptedSettings_Decrypt() {
 	settings0, _ := hex.DecodeString(hexSettings0)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(settings0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(settings0))
 	if err != nil {
 		fmt.Println(err)
 	}
-	settings, err := ToSettings(tfile)
+	settings, err := ReadESettings(rawtdf)
 	if err != nil {
 		log.Fatal(err)
 	}

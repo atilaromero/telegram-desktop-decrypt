@@ -13,11 +13,11 @@ const hexMap0 = "54444624ff4d0f000000002022dd185d121fa462a96ccfcc738f79c10365019
 
 func ExampleTMap_GetKey() {
 	map0, _ := hex.DecodeString(hexMap0)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(map0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(map0))
 	if err != nil {
 		fmt.Println(err)
 	}
-	tmap, err := ToTMap(tfile)
+	tmap, err := ReadEMap(rawtdf)
 	if err != nil {
 		fmt.Println("could not read tmap: ", err)
 	}
@@ -32,19 +32,15 @@ func ExampleTMap_GetKey() {
 
 func ExampleTMap_Decrypt() {
 	map0, _ := hex.DecodeString(hexMap0)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(map0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(map0))
 	if err != nil {
 		log.Fatal(err)
 	}
-	tmap, err := ToTMap(tfile)
+	tmap, err := ReadEMap(rawtdf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	key, err := tmap.GetKey("")
-	if err != nil {
-		log.Fatal(err)
-	}
-	decrypted, err := tmap.Decrypt(key)
+	decrypted, err := tmap.Decrypt("")
 	if err != nil {
 		log.Fatal(err)
 	}

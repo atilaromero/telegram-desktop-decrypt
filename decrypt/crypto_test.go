@@ -101,13 +101,13 @@ func TestDecryptLocal(t *testing.T) {
 		if string(_key) != string(key) {
 			t.Fatalf("wrong key. Expected %s, got %s", hex.EncodeToString(_key), hex.EncodeToString(key))
 		}
-		decrypted, err := DecryptLocal(_encrypted,
+		data, err := DecryptLocal(_encrypted,
 			key)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(_decrypted) != string(decrypted) {
-			t.Fatalf("wrong decrypted. Expected %s, got %s", hex.EncodeToString(_decrypted), hex.EncodeToString(decrypted))
+		if string(_decrypted) != string(data) {
+			t.Fatalf("wrong decrypted. Expected %s, got %s", hex.EncodeToString(_decrypted), hex.EncodeToString(data))
 		}
 	}
 }

@@ -21,24 +21,28 @@ func ExampleParseImage() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	key0, err := hex.DecodeString(hexKey)
+	key, err := hex.DecodeString(hexKey)
 	if err != nil {
 		fmt.Println(err)
 	}
-	tfile, err := tdata.ReadPhysical(bytes.NewReader([]byte(image0)))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader([]byte(image0)))
 	if err != nil {
 		fmt.Println(err)
 	}
-	tcache, err := encrypted.ToCache(tfile)
+	ecache, err := encrypted.ReadECache(rawtdf)
 	if err != nil {
 		fmt.Println(err)
 	}
-	msg, err := tcache.Decrypt(key0)
+	data, err := ecache.Decrypt(key)
 	if err != nil {
 		fmt.Println(err)
 	}
-	image := Image{}
-	err = struc.Unpack(bytes.NewReader(msg), &image)
+	cache, err := ReadCache(data, ReverseLSK(Images{}))
+	if err != nil {
+		fmt.Println(err)
+	}
+	image := cache.(Images)
+	err = struc.Unpack(bytes.NewReader(data), &image)
 	if err != nil {
 		fmt.Println(err)
 	}

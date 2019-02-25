@@ -11,7 +11,7 @@ const hexDMap0 = "d009000000000003000000582e6ab17475aa9e27000000010000689b000000
 
 func ExampleToDMap() {
 	map0, _ := hex.DecodeString(hexDMap0)
-	dmap, err := ToDMap(map0)
+	dmap, err := ReadDMap(map0)
 	if err != nil {
 		log.Fatal(err)
 	}

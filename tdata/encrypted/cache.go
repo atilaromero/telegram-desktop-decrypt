@@ -8,13 +8,13 @@ import (
 	"github.com/atilaromero/telegram-desktop-decrypt/tdata"
 )
 
-type Cache struct {
+type ECache struct {
 	Encrypted []byte
 }
 
-func ToCache(td tdata.Physical) (Cache, error) {
-	result := Cache{}
-	streams, err := qt.ReadStreams(td.Data)
+func ReadECache(rawtdf tdata.RawTDF) (ECache, error) {
+	result := ECache{}
+	streams, err := qt.ReadStreams(rawtdf.Data)
 	if err != nil {
 		return result, fmt.Errorf("could not get mapped: %v", err)
 	}
@@ -25,10 +25,10 @@ func ToCache(td tdata.Physical) (Cache, error) {
 	return result, err
 }
 
-func (tcache Cache) Decrypt(localkey []byte) ([]byte, error) {
-	decrypted, err := decrypt.DecryptLocal(tcache.Encrypted, localkey)
+func (t ECache) Decrypt(localkey []byte) ([]byte, error) {
+	data, err := decrypt.DecryptLocal(t.Encrypted, localkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt cache file: %v", err)
 	}
-	return decrypted, nil
+	return data, nil
 }

@@ -12,15 +12,15 @@ const hexCache = "54444624ff4d0f00000000205103d8223659d1c68467b0f14a3b4bb8ad16e8
 
 func ExampleToCache() {
 	cache0, _ := hex.DecodeString(hexCache)
-	tfile, err := tdata.ReadPhysical(bytes.NewReader(cache0))
+	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader(cache0))
 	if err != nil {
-		tfile.Print(false)
+		rawtdf.Print(false)
 	}
-	cache, err := ToCache(tfile)
+	ecache, err := ReadECache(rawtdf)
 	if err != nil {
 		fmt.Println("error converting to cache:", err)
 	}
-	fmt.Println(hex.EncodeToString(cache.Encrypted))
+	fmt.Println(hex.EncodeToString(ecache.Encrypted))
 	//Output:
 	// 5103d8223659d1c68467b0f14a3b4bb8ad16e832eaad688c280d46ffe9ca8032
 }

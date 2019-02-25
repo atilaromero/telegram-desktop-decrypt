@@ -9,17 +9,17 @@ import (
 	"github.com/atilaromero/telegram-desktop-decrypt/tdata"
 )
 
-// TMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
-type TMap struct {
+// EMap reflects the streams contained in the tdata/D877F783D5D3EF8C/map0 file.
+type EMap struct {
 	Salt         []byte
 	KeyEncrypted []byte
 	MapEncrypted []byte
 }
 
-// ToTMap opens the map file
-func ToTMap(tfile tdata.Physical) (TMap, error) {
-	result := TMap{}
-	streams, err := qt.ReadStreams(tfile.Data)
+// ReadEMap opens the map file
+func ReadEMap(rawtdf tdata.RawTDF) (EMap, error) {
+	result := EMap{}
+	streams, err := qt.ReadStreams(rawtdf.Data)
 	if err != nil {
 		return result, fmt.Errorf("could not read map streams: %v", err)
 	}
@@ -34,9 +34,9 @@ func ToTMap(tfile tdata.Physical) (TMap, error) {
 
 // GetKey extracts the global key from a map file.
 // That key will be used later to decrypt other files.
-func (tmap TMap) GetKey(password string) ([]byte, error) {
-	passkey := decrypt.CreateLocalKey([]byte(password), tmap.Salt)
-	localkey, err := decrypt.DecryptLocal(tmap.KeyEncrypted, passkey)
+func (t EMap) GetKey(password string) ([]byte, error) {
+	passkey := decrypt.CreateLocalKey([]byte(password), t.Salt)
+	localkey, err := decrypt.DecryptLocal(t.KeyEncrypted, passkey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map key: %v", err)
 	}
@@ -50,10 +50,14 @@ func (tmap TMap) GetKey(password string) ([]byte, error) {
 	return streams[0], nil
 }
 
-func (tmap TMap) Decrypt(localkey []byte) ([]byte, error) {
-	decrypted, err := decrypt.DecryptLocal(tmap.MapEncrypted, localkey)
+func (t EMap) Decrypt(password string) ([]byte, error) {
+	localkey, err := t.GetKey(password)
 	if err != nil {
 		return nil, fmt.Errorf("could not decrypt map file: %v", err)
 	}
-	return decrypted, nil
+	data, err := decrypt.DecryptLocal(t.MapEncrypted, localkey)
+	if err != nil {
+		return nil, fmt.Errorf("could not decrypt map file: %v", err)
+	}
+	return data, nil
 }

@@ -12,18 +12,18 @@ import (
 	"github.com/atilaromero/telegram-desktop-decrypt/qt"
 )
 
-// Physical is the generic structure of a tdata file.
-type Physical struct {
+// RawTDF is the generic structure of a tdata file.
+type RawTDF struct {
 	Version    uint32
 	PartialMD5 [16]byte
 	CorrectMD5 bool
 	Data       []byte
 }
 
-// ReadPhysical interprets the generic structure of a tdata file,
+// ReadRawTDF interprets the generic structure of a tdata file,
 // reading the TDF$ magic bytes, version, and checking the 16bytes partial MD5 at the end.
-func ReadPhysical(f io.Reader) (Physical, error) {
-	result := Physical{}
+func ReadRawTDF(f io.Reader) (RawTDF, error) {
+	result := RawTDF{}
 	var magic [4]byte
 	_, err := f.Read(magic[:])
 	if err != nil {
@@ -60,7 +60,7 @@ func ReadPhysical(f io.Reader) (Physical, error) {
 }
 
 // Print general information about this encrypted file
-func (td Physical) Print(verbose bool) {
+func (td RawTDF) Print(verbose bool) {
 	fmt.Printf("version\t%d\n", td.Version)
 	fmt.Printf("partialMD5\t%s\n", hex.EncodeToString(td.PartialMD5[:]))
 	fmt.Printf("correctMD5\t%t\n", td.CorrectMD5)
