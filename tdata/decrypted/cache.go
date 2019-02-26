@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 
 	"github.com/lunixbochs/struc"
@@ -65,21 +66,35 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 			if err != nil {
 				return result, err
 			}
-			readUserSetting(&result, blockID)
+			readUserSetting(r, &result, blockID)
 		}
+		fmt.Println("DbiAutoLock", result.DbiAutoLock)
 		return result, nil
 	default:
 		return nil, fmt.Errorf("stream type is not fully supported yet: %v", LSK[keytype])
 	}
 }
 
-func readUserSetting(result *UserSettings, blockID uint32) error {
+func readField(r *bytes.Reader, field reflect.Value) error {
+	switch field.Kind() {
+	case reflect.Struct:
+		for i := 0; i < field.NumField(); i++ {
+			readField(r, field.Field(i))
+		}
+	default:
+		interf := field.Addr().Interface()
+		return struc.Unpack(r, interf)
+	}
+	return nil
+}
+
+func readUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
 	fieldName := DBI[blockID]
 	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
-	switch fieldName {
-	case "":
-		return nil
+	fmt.Fprintf(os.Stderr, "%v\n", fieldName)
+	err := readField(r, field)
+	if err != nil {
+		fmt.Println("Error: ", fieldName, err)
 	}
-	fmt.Println(field)
 	return nil
 }
