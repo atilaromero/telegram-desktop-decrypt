@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 
+	"github.com/atilaromero/telegram-desktop-decrypt/qt"
 	"github.com/lunixbochs/struc"
 )
 
@@ -66,13 +66,28 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 			if err != nil {
 				return result, err
 			}
-			readUserSetting(r, &result, blockID)
+			err = readUserSetting(r, &result, blockID)
+			if err != nil {
+				return result, err
+			}
 		}
-		fmt.Println("DbiAutoLock", result.DbiAutoLock)
 		return result, nil
 	default:
 		return nil, fmt.Errorf("stream type is not fully supported yet: %v", LSK[keytype])
 	}
+}
+
+func readUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
+	fieldName, ok := DBI[blockID]
+	if !ok {
+		return fmt.Errorf("blockID not found: %v", blockID)
+	}
+	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
+	err := readField(r, field)
+	if err != nil {
+		return fmt.Errorf("Error: %v: %v", fieldName, err)
+	}
+	return nil
 }
 
 func readField(r *bytes.Reader, field reflect.Value) error {
@@ -81,20 +96,48 @@ func readField(r *bytes.Reader, field reflect.Value) error {
 		for i := 0; i < field.NumField(); i++ {
 			readField(r, field.Field(i))
 		}
+	case reflect.Slice:
+		switch field.Type().Elem().Kind() {
+		case reflect.Uint8:
+			len := int32(0)
+			struc.Unpack(r, &len)
+			if len < 0 {
+				field.SetBytes([]byte{})
+				return nil
+			}
+			b := make([]byte, len)
+			err := struc.Unpack(r, b)
+			if err != nil {
+				return err
+			}
+			field.SetBytes(b)
+		default:
+			len := int32(0)
+			struc.Unpack(r, &len)
+			slice := reflect.MakeSlice(field.Type(), int(len), int(len))
+			for i := 0; i < int(len); i++ {
+				readField(r, slice.Index(i))
+			}
+			field.Set(slice)
+			return nil
+		}
+	case reflect.String:
+		len := int32(0)
+		struc.Unpack(r, &len)
+		if len < 0 {
+			field.SetString("")
+			return nil
+		}
+		b := make([]byte, len)
+		err := struc.Unpack(r, b)
+		if err != nil {
+			return err
+		}
+		field.SetString(qt.ConvertUtf16(b))
+		return nil
 	default:
 		interf := field.Addr().Interface()
 		return struc.Unpack(r, interf)
-	}
-	return nil
-}
-
-func readUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
-	fieldName := DBI[blockID]
-	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
-	fmt.Fprintf(os.Stderr, "%v\n", fieldName)
-	err := readField(r, field)
-	if err != nil {
-		fmt.Println("Error: ", fieldName, err)
 	}
 	return nil
 }

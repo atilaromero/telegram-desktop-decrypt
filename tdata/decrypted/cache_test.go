@@ -3,7 +3,9 @@ package decrypted
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/atilaromero/telegram-desktop-decrypt/tdata"
 	"github.com/atilaromero/telegram-desktop-decrypt/tdata/encrypted"
@@ -50,32 +52,17 @@ func ExampleReadCache() {
 }
 
 func ExampleReadCache_1() {
-	src, err := hex.DecodeString("54444624ff4d0f00000002c0cedd93896ccb879796e6790bcb6b1ff3d7fa9165a69e1c00d6f3db94d084b874c6aeeed6334f39d6be89e08f816198156aed624d22a78b1350a4523ac6f83443299c0cd3f27dfaa91c68902a30bf3fd5bdb37ad0cc9175429d9a30821331bd41896fc8f197b4a7af2e29e497649733cdd91ae8f813d2f7260f0dbf56dccda795633ea198b22dbdb3ce3a7e6f9275ee488fdcd73bb300154f4044439397c5c03c55165476677dd2cf466240d00f2fa93c1c0884f0e493424c3f06fe01ca62074a8b04d6e5b61d5eb091a459d595d7a6dd87ab2ce1971a0209d36f1a33a536efd92c5f9a176a194629b56056bc863c891550374da5014651c429c35ac923bf631ddc1be5de2463e55f638f339760bcca46cc4bea326d22752bae9a6170e82768c39169b199ed13edb7ff47618a0a566fc24845b110f8249ea20683da50efe1fd40b07a5944d863c242b0588ed261461ce42ab66639abae863eff124dcfb4df539ba7210183d33754dcf4c3c8cfeb9e5e16017b7b3d72c05444663c188537836f1f904c9af14f69e444e0c55525c79b39d331b2b7b57cff48b09bbd08ec26c838717629d02a6b7e03933506866b28a4763b3345671f8277d85a118d524fd926c4f1470c60d45196574cc28447fbe60e38c787137b423104571f7c85cdacf679fbf8a1fabc3df1b5c96a90c61da50055ecda819065d147680aa0437fa249f6f5cda220a6659da4d4beffa8a87b5c3515f400b3121d723c12b3126b2d9f324dba1919773ffc1b158da7df6089b7b1d9823f5525fce88e454e8dd851765610a281ed050999e02832e60febfe4fc3fdb8e2565181169e500d50e4f3bf19f79814dae7b0293b1cfbebe01a5b4d2dd5cfe2b0388569bd26cfc01f4b1183eff96f6361e55aaa14dd83c9d235d2107fb8211d091a54596b3d5461734c15150b9549bfb26cc60f597208312b8e029534aec24490ec5162d3923da4593ed5d826f118e099045e1811a25837f80697f39d4c743f1cfc8c")
+	data, err := hex.DecodeString("ac0200000000000500000000000000210000000000000038000000010000002200000e10000000130000000100000052000000010000005100000001000000080000000100000031000000010000000b000000010000001c00000000000000440000000000000045000000030000004600000002000000140000000000000033ffffffffffffffff0000002300000030002f0068006f006d0065002f006100740069006c0061002e0061006c0072002f0050006900630074007500720065007300000029000dbba000000042000dbba0000000340000000000000000000000000000004000000000000000000000004100000000000000370000000100000049000000000000004d0000003800000000000000000000000000000000000000000000000100000004000000000000000000000000000735b700000000ffffffff000000000000003a0000002200000004d83dde02000100000004d83dde180001000000022764000100000004d83dde0d000100000004d83dde0a000100000004d83dde01000100000004d83ddc4d000100000002263a000100000004d83dde14000100000004d83dde04000100000004d83dde2d000100000004d83ddc8b000100000004d83dde12000100000004d83dde33000100000004d83dde1c000100000004d83dde48000100000004d83dde09000100000004d83dde03000100000004d83dde22000100000004d83dde1d000100000004d83dde31000100000004d83dde21000100000004d83dde0f000100000004d83dde1e000100000004d83dde05000100000004d83dde1a000100000004d83dde4a000100000004d83dde0c000100000004d83dde00000100000004d83dde0b000100000004d83dde06000100000004d83ddc4c000100000004d83dde10000100000004d83dde1500010000003b0000000000000026000000003ab23fdf")
 	if err != nil {
 		fmt.Println(err)
 	}
-	key, err := hex.DecodeString(hexKey)
+	code := ReverseLSK(UserSettings{})
+	cache, err := ReadCache(data, code)
 	if err != nil {
 		fmt.Println(err)
 	}
-	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader([]byte(src)))
-	if err != nil {
-		fmt.Println(err)
-	}
-	ecache, err := encrypted.ReadECache(rawtdf)
-	if err != nil {
-		fmt.Println(err)
-	}
-	data, err := ecache.Decrypt(key)
-	if err != nil {
-		fmt.Println(err)
-	}
-	cache, err := ReadCache(data, ReverseLSK(UserSettings{}))
-	if err != nil {
-		fmt.Println(err)
-	}
-	usettings := cache.(UserSettings)
-	fmt.Println(usettings.DbiAutoLock)
+	json.NewEncoder(os.Stdout).Encode(cache)
 	// Output:
-	//
+	// blockID not found: 984760287
+	// {"FullLen":2885812224,"DbiDcOptionOldOld":{"DcId":0,"Host":"","IP":"","Port":0},"DbiDcOptionOld":{"DcIdWithShift":0,"Flags":0,"IP":"","Port":0},"DbiDcOptions":{"Serialized":null},"DbiChatSizeMax":0,"DbiSavedGifsLimit":0,"DbiStickersRecentLimit":0,"DbiStickersFavedLimit":0,"DbiMegagroupSizeMax":0,"DbiUser":{"UserId":0,"DcId":0},"DbiKey":{"DcId":0,"Key":null},"DbiMtpAuthorization":{"Serialized":null},"DbiAutoStart":0,"DbiStartMinimized":0,"DbiSendToMenu":0,"DbiUseExternalVideoPlayer":0,"DbiCacheSettings":{"Size":0,"Time":0},"DbiAnimationsDisabled":0,"DbiSoundNotify":1,"DbiAutoDownload":{"Photo":0,"Audio":0,"Gif":0},"DbiAutoPlay":1,"DbiDialogsMode":{"Enabled":0,"ModeInt":0},"DbiModerateMode":0,"DbiIncludeMutedOld":1,"DbiShowingSavedGifsOld":0,"DbiDesktopNotify":1,"DbiWindowsNotificationsOld":0,"DbiNativeNotifications":0,"DbiNotificationsCount":3,"DbiNotificationsCorner":2,"DbiDialogsWidthRatioOld":0,"DbiLastSeenWarningSeenOld":0,"DbiAuthSessionSettings":{"V":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAABAAAAAAAAAAAAAAAAAAHNbcAAAAA/////wAAAAA="},"DbiWorkMode":0,"DbiTxtDomainString":"","DbiConnectionTypeOld":{"V":0,"Host":"","Port":0,"User":"","Password":""},"DbiConnectionType":0,"DbiThemeKeyOld":0,"DbiThemeKey":{"KeyDay":0,"KeyNight":0,"NightMode":0},"DbiLangPackKey":0,"DbiLanguagesKey":0,"DbiTryIPv6":0,"DbiSeenTrayTooltip":0,"DbiAutoUpdate":0,"DbiLastUpdateCheck":0,"DbiScaleOld":0,"DbiScalePercent":0,"DbiLangOld":0,"DbiLangFileOld":"","DbiWindowPosition":{"X":0,"Y":0,"W":0,"H":0,"Moncrc":0,"Maximized":0},"DbiLoggedPhoneNumber":"","DbiMutePeer":0,"DbiMutedPeers":{"Count":0,"Peers":null},"DbiSendKeyOld":0,"DbiCatsAndDogs":0,"DbiTileBackgroundOld":0,"DbiTileBackground":{"TileDay":0,"TileNight":0},"DbiAdaptiveForWide":1,"DbiAutoLock":3600,"DbiReplaceEmoji":1,"DbiSuggestEmoji":1,"DbiSuggestStickersByEmoji":1,"DbiDefaultAttach":0,"DbiNotifyView":0,"DbiAskDownloadPath":0,"DbiDownloadPathOld":"","DbiDownloadPath":{"V":"","Bookmark":""},"DbiCompressPastedImage":0,"DbiEmojiTabOld":0,"DbiRecentEmojiOldOld":null,"DbiRecentEmojiOld":null,"DbiRecentEmoji":[{"First":"😂","Second":1},{"First":"😘","Second":1},{"First":"❤","Second":1},{"First":"😍","Second":1},{"First":"😊","Second":1},{"First":"😁","Second":1},{"First":"👍","Second":1},{"First":"☺","Second":1},{"First":"😔","Second":1},{"First":"😄","Second":1},{"First":"😭","Second":1},{"First":"💋","Second":1},{"First":"😒","Second":1},{"First":"😳","Second":1},{"First":"😜","Second":1},{"First":"🙈","Second":1},{"First":"😉","Second":1},{"First":"😃","Second":1},{"First":"😢","Second":1},{"First":"😝","Second":1},{"First":"😱","Second":1},{"First":"😡","Second":1},{"First":"😏","Second":1},{"First":"😞","Second":1},{"First":"😅","Second":1},{"First":"😚","Second":1},{"First":"🙊","Second":1},{"First":"😌","Second":1},{"First":"😀","Second":1},{"First":"😋","Second":1},{"First":"😆","Second":1},{"First":"👌","Second":1},{"First":"😐","Second":1},{"First":"😕","Second":1}],"DbiRecentStickers":[],"DbiEmojiVariantsOld":null,"DbiEmojiVariants":[],"DbiHiddenPinnedMessages":null,"DbiDialogLastPath":"/home/atila.alr/Pictures","DbiSongVolume":900000,"DbiVideoVolume":900000,"DbiPlaybackSpeed":0}
 }

@@ -1,6 +1,8 @@
 package decrypted
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var LSK = map[uint32]interface{}{
 	0x00: UserMap{},
@@ -376,9 +378,7 @@ type UserSettings struct {
 		V []byte
 	}
 	DbiWorkMode int32
-	DbiTxtDomainString struct {
-		V string
-	}
+	DbiTxtDomainString string
 	DbiConnectionTypeOld struct {
 		V int32
 		Host string
@@ -402,9 +402,7 @@ type UserSettings struct {
 	DbiScaleOld int32
 	DbiScalePercent int32
 	DbiLangOld int32
-	DbiLangFileOld struct {
-		V string
-	}
+	DbiLangFileOld string
 	DbiWindowPosition struct {
 		X int
 		Y int
@@ -413,9 +411,7 @@ type UserSettings struct {
 		Moncrc int32
 		Maximized int
 	}
-	DbiLoggedPhoneNumber struct {
-		V string
-	}
+	DbiLoggedPhoneNumber string
 	DbiMutePeer uint64
 	DbiMutedPeers struct {
 		Count uint32 `struc:"sizeof="Peers"`
@@ -436,22 +432,41 @@ type UserSettings struct {
 	DbiDefaultAttach int32
 	DbiNotifyView int32
 	DbiAskDownloadPath int32
-	DbiDownloadPathOld struct {
-		V string
-	}
+	DbiDownloadPathOld string
 	DbiDownloadPath struct {
 		V string
 		Bookmark []byte
 	}
 	DbiCompressPastedImage int32
 	DbiEmojiTabOld int32
-	// DbiRecentEmojiOldOld
-	// DbiRecentEmojiOld
-	// DbiRecentEmoji
-	// DbiRecentStickers
-	// DbiEmojiVariantsOld
-	// DbiEmojiVariants
-	// DbiHiddenPinnedMessages
+	DbiRecentEmojiOldOld []struct{
+		First uint32
+		Second uint16
+	}
+	DbiRecentEmojiOld []struct{
+		First uint64
+		Second uint16
+	}
+	DbiRecentEmoji []struct{
+		First string
+		Second uint16
+	}
+	DbiRecentStickers []struct{
+		First uint64
+		Second uint16
+	}
+	DbiEmojiVariantsOld []struct{
+		First uint32
+		Second uint64
+	}
+	DbiEmojiVariants []struct{
+		First string
+		Second uint16
+	}
+	DbiHiddenPinnedMessages []struct{
+		PeerId uint64
+		MsgId int32
+	}
 	DbiDialogLastPath string
 	DbiSongVolume int32
 	DbiVideoVolume int32
