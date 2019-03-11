@@ -23,13 +23,19 @@ func CreateLocalKey(pass []byte, salt []byte) []byte {
 }
 
 // DecryptLocal decrypts a message. localKey should be created at CreateLocalKey.
-func DecryptLocal(encryptedMsg []byte, localKey []byte) ([]byte, error) {
+func DecryptLocal(encryptedMsg []byte, localKey []byte) (out []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			out = nil
+			err = fmt.Errorf("error decrypting data: %v", r)
+		}
+	}()
 	if len(encryptedMsg) < 16 {
 		return nil, fmt.Errorf("encrypted message too short (%d)", len(encryptedMsg))
 	}
 	msgKey := encryptedMsg[:16]
 	encrypted := encryptedMsg[16:]
-	out := make([]byte, len(encrypted))
+	out = make([]byte, len(encrypted))
 	key, iv := PrepareAESOldmtp(localKey, msgKey)
 	cph, err := aes.NewCipher(key)
 	if err != nil {

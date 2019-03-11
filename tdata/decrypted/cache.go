@@ -31,14 +31,14 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 		return result, err
 	case Locations:
 		result := Locations{}
-		location := Location{}
 		err := binary.Read(r, binary.BigEndian, &result.FullLen)
 		if err != nil {
 			return nil, err
 		}
 		for {
+			location := Location{}
 			err := struc.Unpack(r, &location)
-			if err == io.EOF {
+			if err == io.ErrUnexpectedEOF || err == io.EOF {
 				break
 			}
 			if err != nil {

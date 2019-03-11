@@ -1,7 +1,9 @@
 package decrypted
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/atilaromero/telegram-desktop-decrypt/qt"
 )
 
 var LSK = map[uint32]interface{}{
@@ -273,6 +275,30 @@ type Location struct {
 	Date       uint64
 	Time       uint32
 	Size       uint32
+}
+
+func (t *Location) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		First      uint64
+		Second     uint64
+		LegacyType uint32
+		Len        int32
+		Filename   string
+		Bookmark   [5]byte
+		Date       uint64
+		Time       uint32
+		Size       uint32
+	}{
+		First:      t.First,
+		Second:     t.Second,
+		LegacyType: t.LegacyType,
+		Len:        t.Len,
+		Filename:   qt.ConvertUtf16(t.Filename),
+		Bookmark:   t.Bookmark,
+		Date:       t.Date,
+		Time:       t.Time,
+		Size:       t.Size,
+	})
 }
 
 type StickerImages struct {

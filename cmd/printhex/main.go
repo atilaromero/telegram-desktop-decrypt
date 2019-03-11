@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	b := make([]byte, 7000)
+	b := make([]byte, 700000)
 	n, err := f.Read(b)
 	if err != nil {
 		panic(err)
