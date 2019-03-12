@@ -46,8 +46,6 @@ func ConvertUtf16(b []byte) string {
 
 var epoch = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
 
-func qDateTime(qDate uint64, qTime uint32) time.Time {
+func QDateTime(qDate uint64, qTime uint32) time.Time {
 	return epoch.Add(time.Hour * time.Duration(24*(qDate-2440588))).Add(time.Millisecond * time.Duration(qTime))
 }
-
-type QtString string
