@@ -20,39 +20,39 @@ const hexKey = "4dd3f7947d2f92c5802f2e05cb27520e6a169cdffc071cfcecb2c60c6b1b1415
 func ExampleReadCache() {
 	image0, err := hex.DecodeString(hexImage)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(1, err)
 	}
 	key, err := hex.DecodeString(hexKey)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(2, err)
 	}
 	rawtdf, err := tdata.ReadRawTDF(bytes.NewReader([]byte(image0)))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(3, err)
 	}
 	ecache, err := encrypted.ReadECache(rawtdf)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(4, err)
 	}
 	data, err := ecache.Decrypt(key)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(5, err)
 	}
 	cache, err := ReadCache(data, ReverseLSK(Images{}))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(6, err)
 	}
 	image := cache.(Images)
 	err = struc.Unpack(bytes.NewReader(data), &image)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("error using unpack", err)
 	}
 	fmt.Println(hex.EncodeToString(image.Data))
 	// Output:
 	// ffd8ffe000104a46494600010101004800480000ffdb0043000e0a0b0d0b090e0d0c0d100f0e11162417161414162c20211a24342e3736332e32323a4153463a3d4e3e32324862494e56585d5e5d3845666d655a6c535b5d59ffdb0043010f10101613162a17172a593b323b5959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959ffc00011080020005a03012200021101031101ffc400190000030101010000000000000000000000010204030007ffc400351000010302020705050900000000000000010002110312043105132141515291227192a1d2233233d1f042536162638193b1e1ffc40014010100000000000000000000000000000000ffc4001511010100000000000000000000000000000011ffda000c03010002110311003f00f49424252e9902d3fba59a633b5a78142b491c576c3b2520b098007447b0d76401ee409a81f79533e64daafceff126b9bcc3aaeb9bcc3aa0cf51fa957c4b502042ecd720e596b2adf1632d9ceedcb5201cc4a018d19040a5ce00ec64ee177f89c64858de099023410609247926fac966e6bc35e581ae7fd9b8c058df8d9f8543f91de9414900882011f884440c879294d4c5813aaa3dd7bbd281763af814f0f11bdeef920afeb25ca51531b13a9a1ddac77a5173f1922da34403c6a3bd2837820f6623815d2e8f776f9292ed2371ec616d0799d97446ec7961f678704e46f76cef1082a17ef0d464f2a901d21116618bb8dce8fe90bf48449a787f13fe482c93b9bd51513ce91221a30cd24672e31e4aca61c29b43c82f81711bca0fffd9
 }
 
-func ExampleReadCache_1() {
+func ExampleReadCache_a() {
 	data, err := hex.DecodeString("ac0200000000000500000000000000210000000000000038000000010000002200000e10000000130000000100000052000000010000005100000001000000080000000100000031000000010000000b000000010000001c00000000000000440000000000000045000000030000004600000002000000140000000000000033ffffffffffffffff0000002300000030002f0068006f006d0065002f006100740069006c0061002e0061006c0072002f0050006900630074007500720065007300000029000dbba000000042000dbba0000000340000000000000000000000000000004000000000000000000000004100000000000000370000000100000049000000000000004d0000003800000000000000000000000000000000000000000000000100000004000000000000000000000000000735b700000000ffffffff000000000000003a0000002200000004d83dde02000100000004d83dde180001000000022764000100000004d83dde0d000100000004d83dde0a000100000004d83dde01000100000004d83ddc4d000100000002263a000100000004d83dde14000100000004d83dde04000100000004d83dde2d000100000004d83ddc8b000100000004d83dde12000100000004d83dde33000100000004d83dde1c000100000004d83dde48000100000004d83dde09000100000004d83dde03000100000004d83dde22000100000004d83dde1d000100000004d83dde31000100000004d83dde21000100000004d83dde0f000100000004d83dde1e000100000004d83dde05000100000004d83dde1a000100000004d83dde4a000100000004d83dde0c000100000004d83dde00000100000004d83dde0b000100000004d83dde06000100000004d83ddc4c000100000004d83dde10000100000004d83dde1500010000003b0000000000000026000000003ab23fdf")
 	if err != nil {
 		fmt.Println(err)
@@ -64,11 +64,10 @@ func ExampleReadCache_1() {
 	}
 	json.NewEncoder(os.Stdout).Encode(cache)
 	// Output:
-	// blockID not found: 984760287
-	// {"FullLen":2885812224,"DbiDcOptionOldOld":{"DcId":0,"Host":"","IP":"","Port":0},"DbiDcOptionOld":{"DcIdWithShift":0,"Flags":0,"IP":"","Port":0},"DbiDcOptions":{"Serialized":null},"DbiChatSizeMax":0,"DbiSavedGifsLimit":0,"DbiStickersRecentLimit":0,"DbiStickersFavedLimit":0,"DbiMegagroupSizeMax":0,"DbiUser":{"UserId":0,"DcId":0},"DbiKey":{"DcId":0,"Key":null},"DbiMtpAuthorization":{"Serialized":null},"DbiAutoStart":0,"DbiStartMinimized":0,"DbiSendToMenu":0,"DbiUseExternalVideoPlayer":0,"DbiCacheSettings":{"Size":0,"Time":0},"DbiAnimationsDisabled":0,"DbiSoundNotify":1,"DbiAutoDownload":{"Photo":0,"Audio":0,"Gif":0},"DbiAutoPlay":1,"DbiDialogsMode":{"Enabled":0,"ModeInt":0},"DbiModerateMode":0,"DbiIncludeMutedOld":1,"DbiShowingSavedGifsOld":0,"DbiDesktopNotify":1,"DbiWindowsNotificationsOld":0,"DbiNativeNotifications":0,"DbiNotificationsCount":3,"DbiNotificationsCorner":2,"DbiDialogsWidthRatioOld":0,"DbiLastSeenWarningSeenOld":0,"DbiAuthSessionSettings":{"V":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAABAAAAAAAAAAAAAAAAAAHNbcAAAAA/////wAAAAA="},"DbiWorkMode":0,"DbiTxtDomainString":"","DbiConnectionTypeOld":{"V":0,"Host":"","Port":0,"User":"","Password":""},"DbiConnectionType":0,"DbiThemeKeyOld":0,"DbiThemeKey":{"KeyDay":0,"KeyNight":0,"NightMode":0},"DbiLangPackKey":0,"DbiLanguagesKey":0,"DbiTryIPv6":0,"DbiSeenTrayTooltip":0,"DbiAutoUpdate":0,"DbiLastUpdateCheck":0,"DbiScaleOld":0,"DbiScalePercent":0,"DbiLangOld":0,"DbiLangFileOld":"","DbiWindowPosition":{"X":0,"Y":0,"W":0,"H":0,"Moncrc":0,"Maximized":0},"DbiLoggedPhoneNumber":"","DbiMutePeer":0,"DbiMutedPeers":{"Count":0,"Peers":null},"DbiSendKeyOld":0,"DbiCatsAndDogs":0,"DbiTileBackgroundOld":0,"DbiTileBackground":{"TileDay":0,"TileNight":0},"DbiAdaptiveForWide":1,"DbiAutoLock":3600,"DbiReplaceEmoji":1,"DbiSuggestEmoji":1,"DbiSuggestStickersByEmoji":1,"DbiDefaultAttach":0,"DbiNotifyView":0,"DbiAskDownloadPath":0,"DbiDownloadPathOld":"","DbiDownloadPath":{"V":"","Bookmark":""},"DbiCompressPastedImage":0,"DbiEmojiTabOld":0,"DbiRecentEmojiOldOld":null,"DbiRecentEmojiOld":null,"DbiRecentEmoji":[{"First":"😂","Second":1},{"First":"😘","Second":1},{"First":"❤","Second":1},{"First":"😍","Second":1},{"First":"😊","Second":1},{"First":"😁","Second":1},{"First":"👍","Second":1},{"First":"☺","Second":1},{"First":"😔","Second":1},{"First":"😄","Second":1},{"First":"😭","Second":1},{"First":"💋","Second":1},{"First":"😒","Second":1},{"First":"😳","Second":1},{"First":"😜","Second":1},{"First":"🙈","Second":1},{"First":"😉","Second":1},{"First":"😃","Second":1},{"First":"😢","Second":1},{"First":"😝","Second":1},{"First":"😱","Second":1},{"First":"😡","Second":1},{"First":"😏","Second":1},{"First":"😞","Second":1},{"First":"😅","Second":1},{"First":"😚","Second":1},{"First":"🙊","Second":1},{"First":"😌","Second":1},{"First":"😀","Second":1},{"First":"😋","Second":1},{"First":"😆","Second":1},{"First":"👌","Second":1},{"First":"😐","Second":1},{"First":"😕","Second":1}],"DbiRecentStickers":[],"DbiEmojiVariantsOld":null,"DbiEmojiVariants":[],"DbiHiddenPinnedMessages":null,"DbiDialogLastPath":"/home/atila.alr/Pictures","DbiSongVolume":900000,"DbiVideoVolume":900000,"DbiPlaybackSpeed":0}
+	// {"FullLen":684,"DbiDcOptionOldOld":{"DcId":0,"Host":"","IP":"","Port":0},"DbiDcOptionOld":{"DcIdWithShift":0,"Flags":0,"IP":"","Port":0},"DbiDcOptions":{"Serialized":null},"DbiChatSizeMax":0,"DbiSavedGifsLimit":0,"DbiStickersRecentLimit":0,"DbiStickersFavedLimit":0,"DbiMegagroupSizeMax":0,"DbiUser":{"UserId":0,"DcId":0},"DbiKey":{"DcId":0,"Key":null},"DbiMtpAuthorization":{"Serialized":null},"DbiAutoStart":0,"DbiStartMinimized":0,"DbiSendToMenu":0,"DbiUseExternalVideoPlayer":0,"DbiCacheSettings":{"Size":0,"Time":0},"DbiAnimationsDisabled":0,"DbiSoundNotify":1,"DbiAutoDownload":{"Photo":0,"Audio":0,"Gif":0},"DbiAutoPlay":1,"DbiDialogsMode":{"Enabled":0,"ModeInt":0},"DbiModerateMode":0,"DbiIncludeMutedOld":1,"DbiShowingSavedGifsOld":0,"DbiDesktopNotify":1,"DbiWindowsNotificationsOld":0,"DbiNativeNotifications":0,"DbiNotificationsCount":3,"DbiNotificationsCorner":2,"DbiDialogsWidthRatioOld":0,"DbiLastSeenWarningSeenOld":0,"DbiAuthSessionSettings":{"V":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAABAAAAAAAAAAAAAAAAAAHNbcAAAAA/////wAAAAA="},"DbiWorkMode":0,"DbiTxtDomainString":"","DbiConnectionTypeOld":{"V":0,"Host":"","Port":0,"User":"","Password":""},"DbiConnectionType":0,"DbiThemeKeyOld":0,"DbiThemeKey":{"KeyDay":0,"KeyNight":0,"NightMode":0},"DbiLangPackKey":0,"DbiLanguagesKey":0,"DbiTryIPv6":0,"DbiSeenTrayTooltip":0,"DbiAutoUpdate":0,"DbiLastUpdateCheck":0,"DbiScaleOld":0,"DbiScalePercent":0,"DbiLangOld":0,"DbiLangFileOld":"","DbiWindowPosition":{"X":0,"Y":0,"W":0,"H":0,"Moncrc":0,"Maximized":0},"DbiLoggedPhoneNumber":"","DbiMutePeer":0,"DbiMutedPeers":{"Count":0,"Peers":null},"DbiSendKeyOld":0,"DbiCatsAndDogs":0,"DbiTileBackgroundOld":0,"DbiTileBackground":{"TileDay":0,"TileNight":0},"DbiAdaptiveForWide":1,"DbiAutoLock":3600,"DbiReplaceEmoji":1,"DbiSuggestEmoji":1,"DbiSuggestStickersByEmoji":1,"DbiDefaultAttach":0,"DbiNotifyView":0,"DbiAskDownloadPath":0,"DbiDownloadPathOld":"","DbiDownloadPath":{"V":"","Bookmark":""},"DbiCompressPastedImage":0,"DbiEmojiTabOld":0,"DbiRecentEmojiOldOld":null,"DbiRecentEmojiOld":null,"DbiRecentEmoji":[{"First":"😂","Second":1},{"First":"😘","Second":1},{"First":"❤","Second":1},{"First":"😍","Second":1},{"First":"😊","Second":1},{"First":"😁","Second":1},{"First":"👍","Second":1},{"First":"☺","Second":1},{"First":"😔","Second":1},{"First":"😄","Second":1},{"First":"😭","Second":1},{"First":"💋","Second":1},{"First":"😒","Second":1},{"First":"😳","Second":1},{"First":"😜","Second":1},{"First":"🙈","Second":1},{"First":"😉","Second":1},{"First":"😃","Second":1},{"First":"😢","Second":1},{"First":"😝","Second":1},{"First":"😱","Second":1},{"First":"😡","Second":1},{"First":"😏","Second":1},{"First":"😞","Second":1},{"First":"😅","Second":1},{"First":"😚","Second":1},{"First":"🙊","Second":1},{"First":"😌","Second":1},{"First":"😀","Second":1},{"First":"😋","Second":1},{"First":"😆","Second":1},{"First":"👌","Second":1},{"First":"😐","Second":1},{"First":"😕","Second":1}],"DbiRecentStickers":[],"DbiEmojiVariantsOld":null,"DbiEmojiVariants":[],"DbiHiddenPinnedMessages":null,"DbiDialogLastPath":"/home/atila.alr/Pictures","DbiSongVolume":900000,"DbiVideoVolume":900000,"DbiPlaybackSpeed":0}
 }
 
-func ExampleReadCache_2() {
+func ExampleReadCache_b() {
 	data, err := ioutil.ReadFile("3819F76AB0801E1F1.rawdecrypted")
 	if err != nil {
 		fmt.Println(err)
@@ -78,7 +77,13 @@ func ExampleReadCache_2() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	json.NewEncoder(os.Stdout).Encode(cache)
+	b, err := json.Marshal(cache)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(b[:300]))
+	fmt.Println(string(b[len(b)-300:]))
 	// Output:
-	// {"FullLen":1891173376,"Locations":[{"First":4396468626018795521,"Second":207589534785864573,"LegacyType":1086091090,"Len":136,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/video_2016-11-02_21-20-53.mov","Bookmark":[255,255,255,255],"DateTime":"2016-11-02T21:22:38.171Z","Size":2790799},{"First":4396468626018795521,"Second":240507482697368538,"LegacyType":1086091090,"Len":136,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/video_2016-09-07_20-54-57.mov","Bookmark":[255,255,255,255],"DateTime":"2016-09-07T20:57:35.018Z","Size":3588747}]}
+	// {"FullLen":1891173376,"Locations":[{"First":4396468626018795521,"Second":207589534785864573,"LegacyType":1086091090,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/video_2016-11-02_21-20-53.mov","Bookmark":"","DateTime":"2016-11-02T21:22:38.171Z","Size":2790799},{"First":4396468626018795521,"Seco
+	// Bookmark":"","DateTime":"2017-04-11T19:33:26.832Z","Size":19127160},{"First":8420676102732644356,"Second":912378425220531396,"LegacyType":1086091090,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/audio_2016-07-22_19-35-29.mp3","Bookmark":"","DateTime":"2016-07-22T19:37:54.867Z","Size":4181910}]}
 }

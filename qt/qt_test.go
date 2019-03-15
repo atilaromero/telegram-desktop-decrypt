@@ -12,28 +12,9 @@ func ExampleConvertUtf16() {
 }
 
 func ExampleQDateTime() {
-	// d := uint64(629169924) //2440588)
-	// d := uint64(0x045f8025)
-	d := uint64(0)
-	t := uint32(0)
+	d := uint64(0x000000000025805f)
+	t := uint32(0x049649db)
 	fmt.Println(QDateTime(d, t))
 	// Output:
-	//
+	// 2016-11-02 21:22:38.171 +0000 UTC
 }
-
-// func Example() {
-// 	f, err := os.Open("/home/atila.alr/.local/share/TelegramDesktop/tdata/D877F783D5D3EF8C/1FD1BC8B703D7F290")
-
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	b := make([]byte, 7000)
-// 	n, err := f.Read(b)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	s := hex.EncodeToString(b[:n])
-// 	fmt.Println(s)
-// 	// Output:
-// 	//
-// }

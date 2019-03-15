@@ -8,12 +8,11 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/atilaromero/telegram-desktop-decrypt/qt"
 	"github.com/lunixbochs/struc"
 )
-
-type locationStruct struct {
-}
 
 func unpack(r io.Reader, data interface{}) (err error) {
 	defer func() {
@@ -30,20 +29,20 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 	case Audios:
 		result := Audios{}
 		err := unpack(r, &result)
-		return result, err
+		return result, errors.Wrap(err, "error parsing cache file")
 	case StickerImages:
 		result := StickerImages{}
 		err := unpack(r, &result)
-		return result, err
+		return result, errors.Wrap(err, "error parsing cache file")
 	case Images:
 		result := Images{}
 		err := unpack(r, &result)
-		return result, err
+		return result, errors.Wrap(err, "error parsing cache file")
 	case Locations:
 		result := Locations{}
 		err := binary.Read(r, binary.BigEndian, &result.FullLen)
 		if err != nil {
-			return nil, err
+			return result, errors.Wrap(err, "error parsing cache file")
 		}
 		for {
 			location := Location{}
@@ -52,7 +51,7 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 				break
 			}
 			if err != nil {
-				return result, fmt.Errorf("error parsing data as Locations: %v", err)
+				return result, errors.Wrap(err, "error parsing cache file")
 			}
 			if location.First == 0 &&
 				location.Second == 0 &&
@@ -67,13 +66,14 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 	case ReportSpamStatuses:
 		result := ReportSpamStatuses{}
 		err := unpack(r, &result)
-		return result, err
+		return result, errors.Wrap(err, "error parsing cache file")
 	case UserSettings:
 		result := UserSettings{}
-		err := unpack(r, &result.FullLen)
+		err := binary.Read(r, binary.LittleEndian, &result.FullLen)
 		if err != nil {
-			return nil, err
+			return result, errors.Wrap(err, "error parsing cache file")
 		}
+		r = bytes.NewReader(data[4:result.FullLen])
 		var blockID uint32
 		for {
 			err := unpack(r, &blockID)
@@ -81,16 +81,16 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 				break
 			}
 			if err != nil {
-				return result, fmt.Errorf("error parsing data as UserSettings: %v", err)
+				return result, errors.Wrap(err, "error parsing cache file")
 			}
 			err = readUserSetting(r, &result, blockID)
 			if err != nil {
-				return result, err
+				return result, errors.Wrap(err, "error parsing cache file")
 			}
 		}
 		return result, nil
 	default:
-		return nil, fmt.Errorf("stream type is not fully supported yet: %v", LSK[keytype])
+		return struct{}{}, nil
 	}
 }
 
@@ -102,7 +102,7 @@ func readUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) erro
 	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
 	err := readField(r, field)
 	if err != nil {
-		return fmt.Errorf("Error: %v: %v", fieldName, err)
+		return fmt.Errorf("error: %v: %v", fieldName, err)
 	}
 	return nil
 }

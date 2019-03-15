@@ -415,7 +415,7 @@ type UserSettings struct {
 	DbiLoggedPhoneNumber string
 	DbiMutePeer          uint64
 	DbiMutedPeers        struct {
-		Count uint32 `struc:"sizeof="Peers"`
+		Count uint32 `struc:"sizeof=Peers"`
 		Peers []uint64
 	}
 	DbiSendKeyOld        int32
