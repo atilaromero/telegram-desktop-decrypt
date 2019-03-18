@@ -254,16 +254,16 @@ func ReverseLSK(a interface{}) uint32 {
 }
 
 type Images struct {
-	FullLen    uint32
+	FullLen    uint32 `struc:"little"`
 	First      uint64
 	Second     uint64
 	LegacyType uint32
 	Len        uint32 `struc:"sizeof=Data"`
-	Data       []byte
+	Data       []byte `json:"-"`
 }
 
 type Locations struct {
-	FullLen   uint32
+	FullLen   uint32 `struc:"little"`
 	Locations []Location
 }
 type Location struct {
@@ -277,24 +277,24 @@ type Location struct {
 }
 
 type StickerImages struct {
-	FullLen uint32
+	FullLen uint32 `struc:"little"`
 	First   uint64
 	Second  uint64
 	Len     uint32 `struc:"sizeof=Data"`
-	Data    []byte
+	Data    []byte `json:"-"`
 }
 
 type Audios struct {
-	FullLen uint32
+	FullLen uint32 `struc:"little"`
 	First   uint64
 	Second  uint64
 	Len     uint32 `struc:"sizeof=Data"`
-	Data    []byte
+	Data    []byte `json:"-"`
 }
 
 type ReportSpamStatuses struct {
-	FullLen            uint32
-	Size               int32 `struc:"sizeof=ReportSpamStatuses"`
+	FullLen            uint32 `struc:"little"`
+	Size               int32  `struc:"sizeof=ReportSpamStatuses"`
 	ReportSpamStatuses []ReportSpamStatus
 }
 type ReportSpamStatus struct {
@@ -313,7 +313,7 @@ type RecentStickersOld struct{}
 type BackgroundOld struct{}
 
 type UserSettings struct {
-	FullLen           uint32
+	FullLen           uint32 `struc:"little"`
 	DbiDcOptionOldOld struct {
 		DcId uint32
 		Host string

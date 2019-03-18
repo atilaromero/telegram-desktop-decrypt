@@ -23,7 +23,7 @@ func unpack(r io.Reader, data interface{}) (err error) {
 	return struc.Unpack(r, data)
 }
 
-func ReadCache(data []byte, keytype uint32) (interface{}, error) {
+func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 	r := bytes.NewReader(data)
 	switch LSK[keytype].(type) {
 	case Audios:
@@ -46,7 +46,7 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 		}
 		for {
 			location := Location{}
-			err := readField(r, reflect.Indirect(reflect.ValueOf(&location)))
+			err := parseField(r, reflect.Indirect(reflect.ValueOf(&location)))
 			if err == io.ErrUnexpectedEOF || err == io.EOF {
 				break
 			}
@@ -83,7 +83,7 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 			if err != nil {
 				return result, errors.Wrap(err, "error parsing cache file")
 			}
-			err = readUserSetting(r, &result, blockID)
+			err = parseUserSetting(r, &result, blockID)
 			if err != nil {
 				return result, errors.Wrap(err, "error parsing cache file")
 			}
@@ -94,20 +94,20 @@ func ReadCache(data []byte, keytype uint32) (interface{}, error) {
 	}
 }
 
-func readUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
+func parseUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
 	fieldName, ok := DBI[blockID]
 	if !ok {
 		return fmt.Errorf("blockID not found: %v", blockID)
 	}
 	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
-	err := readField(r, field)
+	err := parseField(r, field)
 	if err != nil {
 		return fmt.Errorf("error: %v: %v", fieldName, err)
 	}
 	return nil
 }
 
-func readField(r *bytes.Reader, field reflect.Value) error {
+func parseField(r *bytes.Reader, field reflect.Value) error {
 	switch field.Kind() {
 	case reflect.Struct:
 		switch field.Interface().(type) {
@@ -126,7 +126,7 @@ func readField(r *bytes.Reader, field reflect.Value) error {
 			return nil
 		default:
 			for i := 0; i < field.NumField(); i++ {
-				readField(r, field.Field(i))
+				parseField(r, field.Field(i))
 			}
 		}
 	case reflect.Slice:
@@ -155,7 +155,7 @@ func readField(r *bytes.Reader, field reflect.Value) error {
 			}
 			slice := reflect.MakeSlice(field.Type(), int(len), int(len))
 			for i := 0; i < int(len); i++ {
-				readField(r, slice.Index(i))
+				parseField(r, slice.Index(i))
 			}
 			field.Set(slice)
 			return nil
