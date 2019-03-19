@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/pkg/errors"
 )
 
 type DMap struct {
@@ -22,7 +24,13 @@ func ReadDMap(data []byte) (DMap, error) {
 	result := DMap{
 		Files: make(map[string]uint32),
 	}
-	r := bytes.NewReader(data[4:])
+	var fullLen uint32
+	r := bytes.NewReader(data)
+	err := binary.Read(r, binary.LittleEndian, &fullLen)
+	if err != nil {
+		return result, err
+	}
+	r = bytes.NewReader(data[4:fullLen])
 	var keytype uint32
 	var key, first, second, p uint64
 	var size uint32
@@ -82,7 +90,7 @@ func ReadDMap(data []byte) (DMap, error) {
 				result.Files[keyToFilename(key)] = keytype
 			}
 		default:
-			return result, fmt.Errorf("keytype not treated: %d", keytype)
+			return result, errors.New(fmt.Sprintf("keytype not treated: %d", keytype))
 		}
 	}
 }
