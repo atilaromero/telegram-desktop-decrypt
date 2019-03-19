@@ -40,7 +40,7 @@ func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 		return result, errors.Wrap(err, "error parsing cache file")
 	case Locations:
 		result := Locations{}
-		err := binary.Read(r, binary.BigEndian, &result.FullLen)
+		err := binary.Read(r, binary.LittleEndian, &result.FullLen)
 		if err != nil {
 			return result, errors.Wrap(err, "error parsing cache file")
 		}
@@ -53,8 +53,9 @@ func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 			if err != nil {
 				return result, errors.Wrap(err, "error parsing cache file")
 			}
-			if location.First == 0 &&
-				location.Second == 0 &&
+			if location.MediaKey.LocationType == 0 &&
+				location.MediaKey.DC == 0 &&
+				location.MediaKey.ID == 0 &&
 				len(location.Filename) == 0 &&
 				location.Size == 0 {
 				//endmark

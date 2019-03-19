@@ -66,23 +66,21 @@ func ExampleParseCache_a() {
 	// {"FullLen":684,"DbiDcOptionOldOld":{"DcId":0,"Host":"","IP":"","Port":0},"DbiDcOptionOld":{"DcIdWithShift":0,"Flags":0,"IP":"","Port":0},"DbiDcOptions":{"Serialized":null},"DbiChatSizeMax":0,"DbiSavedGifsLimit":0,"DbiStickersRecentLimit":0,"DbiStickersFavedLimit":0,"DbiMegagroupSizeMax":0,"DbiUser":{"UserId":0,"DcId":0},"DbiKey":{"DcId":0,"Key":null},"DbiMtpAuthorization":{"Serialized":null},"DbiAutoStart":0,"DbiStartMinimized":0,"DbiSendToMenu":0,"DbiUseExternalVideoPlayer":0,"DbiCacheSettings":{"Size":0,"Time":0},"DbiAnimationsDisabled":0,"DbiSoundNotify":1,"DbiAutoDownload":{"Photo":0,"Audio":0,"Gif":0},"DbiAutoPlay":1,"DbiDialogsMode":{"Enabled":0,"ModeInt":0},"DbiModerateMode":0,"DbiIncludeMutedOld":1,"DbiShowingSavedGifsOld":0,"DbiDesktopNotify":1,"DbiWindowsNotificationsOld":0,"DbiNativeNotifications":0,"DbiNotificationsCount":3,"DbiNotificationsCorner":2,"DbiDialogsWidthRatioOld":0,"DbiLastSeenWarningSeenOld":0,"DbiAuthSessionSettings":{"V":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAABAAAAAAAAAAAAAAAAAAHNbcAAAAA/////wAAAAA="},"DbiWorkMode":0,"DbiTxtDomainString":"","DbiConnectionTypeOld":{"V":0,"Host":"","Port":0,"User":"","Password":""},"DbiConnectionType":0,"DbiThemeKeyOld":0,"DbiThemeKey":{"KeyDay":0,"KeyNight":0,"NightMode":0},"DbiLangPackKey":0,"DbiLanguagesKey":0,"DbiTryIPv6":0,"DbiSeenTrayTooltip":0,"DbiAutoUpdate":0,"DbiLastUpdateCheck":0,"DbiScaleOld":0,"DbiScalePercent":0,"DbiLangOld":0,"DbiLangFileOld":"","DbiWindowPosition":{"X":0,"Y":0,"W":0,"H":0,"Moncrc":0,"Maximized":0},"DbiLoggedPhoneNumber":"","DbiMutePeer":0,"DbiMutedPeers":{"Count":0,"Peers":null},"DbiSendKeyOld":0,"DbiCatsAndDogs":0,"DbiTileBackgroundOld":0,"DbiTileBackground":{"TileDay":0,"TileNight":0},"DbiAdaptiveForWide":1,"DbiAutoLock":3600,"DbiReplaceEmoji":1,"DbiSuggestEmoji":1,"DbiSuggestStickersByEmoji":1,"DbiDefaultAttach":0,"DbiNotifyView":0,"DbiAskDownloadPath":0,"DbiDownloadPathOld":"","DbiDownloadPath":{"V":"","Bookmark":""},"DbiCompressPastedImage":0,"DbiEmojiTabOld":0,"DbiRecentEmojiOldOld":null,"DbiRecentEmojiOld":null,"DbiRecentEmoji":[{"First":"😂","Second":1},{"First":"😘","Second":1},{"First":"❤","Second":1},{"First":"😍","Second":1},{"First":"😊","Second":1},{"First":"😁","Second":1},{"First":"👍","Second":1},{"First":"☺","Second":1},{"First":"😔","Second":1},{"First":"😄","Second":1},{"First":"😭","Second":1},{"First":"💋","Second":1},{"First":"😒","Second":1},{"First":"😳","Second":1},{"First":"😜","Second":1},{"First":"🙈","Second":1},{"First":"😉","Second":1},{"First":"😃","Second":1},{"First":"😢","Second":1},{"First":"😝","Second":1},{"First":"😱","Second":1},{"First":"😡","Second":1},{"First":"😏","Second":1},{"First":"😞","Second":1},{"First":"😅","Second":1},{"First":"😚","Second":1},{"First":"🙊","Second":1},{"First":"😌","Second":1},{"First":"😀","Second":1},{"First":"😋","Second":1},{"First":"😆","Second":1},{"First":"👌","Second":1},{"First":"😐","Second":1},{"First":"😕","Second":1}],"DbiRecentStickers":[],"DbiEmojiVariantsOld":null,"DbiEmojiVariants":[],"DbiHiddenPinnedMessages":null,"DbiDialogLastPath":"/home/atila.alr/Pictures","DbiSongVolume":900000,"DbiVideoVolume":900000,"DbiPlaybackSpeed":0}
 }
 
-// func ExampleParseCache_b() {
-// 	data, err := ioutil.ReadFile("3819F76AB0801E1F1.rawdecrypted")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	code := ReverseLSK(Locations{})
-// 	cache, err := ParseCache(data, code)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	b, err := json.Marshal(cache)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Println(string(b[:300]))
-// 	fmt.Println(string(b[len(b)-300:]))
-// 	// Output:
-// 	// {"FullLen":1891173376,"Locations":[{"First":4396468626018795521,"Second":207589534785864573,"LegacyType":1086091090,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/video_2016-11-02_21-20-53.mov","Bookmark":"","DateTime":"2016-11-02T21:22:38.171Z","Size":2790799},{"First":4396468626018795521,"Seco
-// 	// Bookmark":"","DateTime":"2017-04-11T19:33:26.832Z","Size":19127160},{"First":8420676102732644356,"Second":912378425220531396,"LegacyType":1086091090,"Filename":"C:/Users/bb/Downloads/Telegram Desktop/audio_2016-07-22_19-35-29.mp3","Bookmark":"","DateTime":"2016-07-22T19:37:54.867Z","Size":4181910}]}
-// }
+func ExampleParseCache_b() {
+	data, err := hex.DecodeString("ae0000004e45abe9000000014481d5870000003d0000000000000048002f0068006f006d0065002f006100740069006c0061002e0061006c0072002f00500069006300740075007200650073002f00530070006f0074006900660079002e0070006e0067ffffffff000000000025802c02301bbeff0002a38c0000000000000000000000000000000000000000ffffffffffffffff00000000002583c1023ba3e4ff0000000000000000000000000e8e")
+	if err != nil {
+		fmt.Println(err)
+	}
+	code := ReverseLSK(Locations{})
+	cache, err := ParseCache(data, code)
+	if err != nil {
+		fmt.Println(err)
+	}
+	b, err := json.Marshal(cache)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(b))
+	// Output:
+	// {"FullLen":174,"Locations":[{"MediaKey":{"LocationType":"DocumentFileLocation","DC":1,"ID":"0x4481d5870000003d"},"LegacyType":0,"Filename":"/home/atila.alr/Pictures/Spotify.png","Bookmark":"","DateTime":"2016-09-12T10:11:47.262Z","Size":172940}]}
+}

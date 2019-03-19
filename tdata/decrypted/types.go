@@ -1,8 +1,11 @@
 package decrypted
 
 import (
+
 	// "encoding/json"
+	"encoding/json"
 	"fmt"
+
 	// "github.com/atilaromero/telegram-desktop-decrypt/qt"
 	"time"
 )
@@ -253,13 +256,35 @@ func ReverseLSK(a interface{}) uint32 {
 	}
 }
 
-type Images struct {
-	FullLen    uint32 `struc:"little"`
-	First      uint64
-	Second     uint64
-	LegacyType uint32
-	Len        uint32 `struc:"sizeof=Data"`
-	Data       []byte `json:"-"`
+type MediaKey struct {
+	LocationType uint32
+	DC           int32
+	ID           uint64
+}
+
+func (d MediaKey) MarshalJSON() ([]byte, error) {
+	var locationType string
+	switch d.LocationType {
+	case 0x4e45abe9:
+		locationType = "DocumentFileLocation"
+	case 0x74dc404d:
+		locationType = "AudioFileLocation"
+	case 0x3d0364ec:
+		locationType = "VideoFileLocation"
+	case 0xcbc7ee28:
+		locationType = "SecureFileLocation"
+	default:
+		locationType = fmt.Sprintf("0x%x", d.LocationType)
+	}
+	return json.Marshal(struct {
+		LocationType string
+		DC           int32
+		ID           string
+	}{
+		locationType,
+		d.DC,
+		fmt.Sprintf("0x%x", d.ID),
+	})
 }
 
 type Locations struct {
@@ -267,13 +292,21 @@ type Locations struct {
 	Locations []Location
 }
 type Location struct {
-	First      uint64
-	Second     uint64
+	MediaKey   MediaKey
 	LegacyType uint32
 	Filename   string
 	Bookmark   []byte
 	DateTime   time.Time
 	Size       uint32
+}
+
+type Images struct {
+	FullLen    uint32 `struc:"little"`
+	First      uint64
+	Second     uint64
+	LegacyType uint32
+	Len        uint32 `struc:"sizeof=Data"`
+	Data       []byte `json:"-"`
 }
 
 type StickerImages struct {
