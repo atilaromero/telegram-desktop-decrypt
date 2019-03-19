@@ -7,10 +7,15 @@ import (
 )
 
 func main() {
-	f, err := os.Open(os.Args[1])
-
-	if err != nil {
-		panic(err)
+	var f *os.File
+	var err error
+	if len(os.Args) > 1 {
+		f, err = os.Open(os.Args[1])
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		f = os.Stdin
 	}
 	b := make([]byte, 700000)
 	n, err := f.Read(b)
