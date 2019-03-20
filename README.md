@@ -17,3 +17,6 @@ This will produce 3 kinds of files:
   - .rawencrypted: decrypted unparsed file
   - .cache: The cache file (may be a JPEG, video, or any type of shared file).
   - .json: settings or metadata about the cache file.
+  
+The .rawencrypted files are files that were decrypted but are still unparsed.
+Only some types of structure have parsing support. For those, .json or .cache files are produced too.
