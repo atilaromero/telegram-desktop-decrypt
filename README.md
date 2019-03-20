@@ -5,7 +5,7 @@ Telegram Desktop (the one that runs on desktops, not on phones) has a "tdata" fo
 This folder is normally found at "~/.local/share/TelegramDesktop" on Linux 
 and at "%USERPROFILE%\AppData\Roaming\Telegram Desktop" on Windows.
 
-This tool can decrypt those files, which contains settings and cache files, but not chat histories.
+This tool can decrypt those files, which contains settings and cache files, but not chat histories because these are not included in tdata.
 
 ## Usage
 
