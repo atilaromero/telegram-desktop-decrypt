@@ -102,11 +102,24 @@ func main() {
 				log.Fatalf("could not interpret settings file: %+v", err)
 			}
 			settingsKey := settings.GetKey(password)
-			decrypted, err := settings.Decrypt(settingsKey)
-			os.Stdout.Write(decrypted)
+			plain, err := settings.Decrypt(settingsKey)
+			if !parse {
+				os.Stdout.Write(plain)
+				return
+			}
+			parsed, err := decrypted.ParseCache(plain, decrypted.ReverseLSK(decrypted.UserSettings{}))
+			if err != nil {
+				log.Fatalf("could not interpret settings file: %+v", err)
+			}
+			m, err := json.Marshal(parsed)
+			if err != nil {
+				log.Fatalf("could not interpret settings file: %+v", err)
+			}
+			os.Stdout.Write(m)
 		},
 	}
 	cmdSettingsDecrypt.Flags().StringVarP(&password, "password", "p", "", "optional password (default='')")
+	cmdSettingsDecrypt.Flags().BoolVarP(&parse, "parse", "", true, "(default=true)")
 	cmdSettings.AddCommand(cmdSettingsDecrypt)
 
 	cmdMap := &cobra.Command{
