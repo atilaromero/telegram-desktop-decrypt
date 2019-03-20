@@ -1,2 +1,2 @@
-telegram-desktop-decrypt*
-printhex
+cmd/printhex/printhex
+cmd/telegram-desktop-decrypt/telegram-desktop-decrypt
