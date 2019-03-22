@@ -103,6 +103,9 @@ func main() {
 			}
 			settingsKey := settings.GetKey(password)
 			plain, err := settings.Decrypt(settingsKey)
+			if err != nil {
+				log.Fatalf("could not interpret settings file: %+v", err)
+			}
 			if !parse {
 				os.Stdout.Write(plain)
 				return
