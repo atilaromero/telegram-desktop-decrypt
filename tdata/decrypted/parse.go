@@ -75,6 +75,7 @@ func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 			return result, errors.Wrap(err, "error parsing cache file")
 		}
 		r = bytes.NewReader(data[4:result.FullLen])
+		result.Settings = make([]map[string]interface{}, 0)
 		var blockID uint32
 		for {
 			err := unpack(r, &blockID)
@@ -84,10 +85,11 @@ func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 			if err != nil {
 				return result, errors.Wrap(err, "error parsing cache file")
 			}
-			err = parseUserSetting(r, &result, blockID)
+			setting, err := parseUserSetting(r, blockID)
 			if err != nil {
 				return result, errors.Wrap(err, "error parsing cache file")
 			}
+			result.Settings = append(result.Settings, setting)
 		}
 		return result, nil
 	default:
@@ -95,17 +97,20 @@ func ParseCache(data []byte, keytype uint32) (interface{}, error) {
 	}
 }
 
-func parseUserSetting(r *bytes.Reader, result *UserSettings, blockID uint32) error {
+func parseUserSetting(r *bytes.Reader, blockID uint32) (map[string]interface{}, error) {
+	userSetting := UserSetting{}
+	result := make(map[string]interface{})
 	fieldName, ok := DBI[blockID]
 	if !ok {
-		return fmt.Errorf("blockID not found: %v", blockID)
+		return nil, fmt.Errorf("blockID not found: %v", blockID)
 	}
-	field := reflect.Indirect(reflect.ValueOf(result)).FieldByName(fieldName)
+	field := reflect.ValueOf(&userSetting).Elem().FieldByName(fieldName)
 	err := parseField(r, field)
 	if err != nil {
-		return fmt.Errorf("error: %v: %v", fieldName, err)
+		return nil, fmt.Errorf("error: %v: %v", fieldName, err)
 	}
-	return nil
+	result[fieldName] = field.Interface()
+	return result, nil
 }
 
 func parseField(r *bytes.Reader, field reflect.Value) error {

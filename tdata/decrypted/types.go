@@ -346,7 +346,11 @@ type RecentStickersOld struct{}
 type BackgroundOld struct{}
 
 type UserSettings struct {
-	FullLen           uint32 `struc:"little"`
+	FullLen  uint32 `struc:"little"`
+	Settings []map[string]interface{}
+}
+
+type UserSetting struct {
 	DbiDcOptionOldOld struct {
 		DcId uint32
 		Host string
